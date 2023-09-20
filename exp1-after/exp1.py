@@ -1,7 +1,7 @@
 import pickle
 
 from core.ddnnf import ddnnf_to_dot
-from detafter.postdetector import get_tseitin_artifacts
+from detafter.postdetector import get_tseitin_artifacts, get_artifact_size
 from graphviz import Source
 
 
@@ -13,15 +13,22 @@ def main(filename_ddnnf, filename_varinfo):
 
     tseitin_vars = var_info.tseitin_vars
     artifacts = get_tseitin_artifacts(ddnnf, tseitin_vars)  # type: FormulaOverlayList
+    num_saved, num_removed, num_added = get_artifact_size(ddnnf, artifacts, tseitin_vars)
+    print(f"Num nodes removed: {num_removed}.")
+    print(f"Num nodes added: {num_added}.")
+    print(f"Num nodes fewer: {num_saved}.")
     print(tseitin_vars)
-    artifact_to_dot(ddnnf, artifacts, display=True)
+    artifact_to_dot(ddnnf, artifacts, tseitin_vars, display=True)
 
 
-def artifact_to_dot(ddnnf, artifacts, display=True):
+
+def artifact_to_dot(ddnnf, artifacts, tseitin_vars, display=True):
 
     def _color_artifact(index, node):
         if artifacts[index]:
             return 'fillcolor="red"'
+        elif node.node_type == "atom" and index in tseitin_vars:
+            return 'fillcolor="green"'
         else:
             return 'fillcolor="white"'
     # print(ddnnf_to_dot(ddnnf, _color_artifact))

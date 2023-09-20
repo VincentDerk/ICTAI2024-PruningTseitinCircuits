@@ -55,6 +55,9 @@ class DDNNF:
         for idx, node in enumerate(self.nodes[1:]):
             yield idx+1, node
 
+    def __getitem__(self, item):
+        return self.nodes.__getitem__(item)
+
 
 class FormulaOverlayList:
     """
@@ -63,10 +66,13 @@ class FormulaOverlayList:
         #TODO Add usage example
     """
 
-    def __init__(self, ddnnf):
+    def __init__(self, ddnnf, default_constructor=None):
         super().__init__()
         self.ddnnf = ddnnf
-        self.overlay = [None] * len(ddnnf.nodes)
+        if default_constructor is None:
+            self.overlay = [None] * len(ddnnf.nodes)
+        else:
+            self.overlay = [default_constructor(index, node) for (index, node) in ddnnf.nodes]
 
     def __iter__(self):
         yield from self.overlay.__iter__()

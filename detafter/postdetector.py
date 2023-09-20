@@ -1,5 +1,5 @@
 import functools
-from typing import Collection, List
+from typing import Collection, List, Set, Tuple
 
 from core.ddnnf import DDNNF, FormulaOverlayList
 
@@ -81,13 +81,15 @@ def get_overlay_variables(ddnnf, ignore_vars=None) -> FormulaOverlayList:
         elif node.node_type == "disj":
             children = node.node_field
             overlay_varsets[node_idx] = functools.reduce(lambda x, y: x.union(y),
-                                                         (overlay_varsets[abs(idx)] for idx in children))
+                                                         (overlay_varsets[abs(idx)] for idx in
+                                                          children))
             # normally overlay_varsets[node_idx] is the same as its children
             # assert overlay_varsets[node_idx] == overlay_varsets[node.node_field[0]]
         elif node.node_type == "conj":
             children = node.node_field
             overlay_varsets[node_idx] = functools.reduce(lambda x, y: x.union(y),
-                                                          (overlay_varsets[abs(idx)] for idx in children))
+                                                         (overlay_varsets[abs(idx)] for idx in
+                                                          children))
     return overlay_varsets
 
 
@@ -113,13 +115,77 @@ def get_overlay_model_count(ddnnf) -> FormulaOverlayList:
     return overlay_mc
 
 
-def get_artifact_size(ddnnf: DDNNF, overlay_artifact: FormulaOverlayList) -> int:
+def get_overlay_parents(ddnnf) -> FormulaOverlayList:
+    """
+    Create an overlay, capturing the parents of each node.
+    :param ddnnf: The d-DNNF to create an overlay for.
+    :return: An overlay for ddnnf where each node has its set of parent nodes stored.
+    """
+    overlay_parents = FormulaOverlayList(ddnnf, default_constructor=lambda x, y: set())
+    for node_idx, node in ddnnf:
+        if node.node_type == "atom":
+            pass
+        elif node.node_type == "disj" or node.node_type == "conj":
+            children = node.node_field
+            for child_idx in children:
+                overlay_parents[abs(child_idx)].add(node_idx)
+    return overlay_parents
+
+
+def get_artifact_size(ddnnf: DDNNF,
+                      overlay_artifact: FormulaOverlayList,
+                      tseitin_vars: Set[int]) -> Tuple[int, int, int]:
     """
 
-    :return:
+    :return: The number of nodes fewer, the number of nodes removed, the number of new nodes added
     """
-    raise NotImplementedError()
+    # 1. Check which variables already have a smooth node.
+    smoothed_vars = _vars_smoothed_over(ddnnf)
 
+    # 2. Determine which nodes would be removed
+    # - mark every node below an artifact as prunable
+    overlay_parents = get_overlay_parents(ddnnf)
+    overlay_marked = FormulaOverlayList(ddnnf, default_constructor=lambda x,y: False)
+
+    def _mark_children_dfs(node_idx):
+        if not overlay_marked[node_idx]:
+            deletable = all(overlay_marked[parent_idx] for parent_idx in overlay_parents[node_idx])
+            if deletable:
+                overlay_marked[node_idx] = True
+                if ddnnf[node_idx].node_type != "atom":
+                    for child_idx in ddnnf[node_idx].node_field:
+                        _mark_children_dfs(abs(child_idx))
+
+    for index, is_artifact in enumerate(overlay_artifact):
+        if is_artifact:
+            overlay_marked[index] = True
+            # set its children
+            for child_idx in ddnnf[index].node_field:
+                _mark_children_dfs(abs(child_idx))
+
+    num_deletable = sum(overlay_marked.overlay)
+
+    # 3. Determine across entire circuit, by removing artifact nodes, which variables they covered,
+    # and how many new smooth nodes are required.
+    total_covered_vars = set()
+    overlay_varset = get_overlay_variables(ddnnf, ignore_vars=tseitin_vars)
+    for index, is_artifact in enumerate(overlay_artifact):
+        if is_artifact:
+            total_covered_vars.update(overlay_varset[index])
+    # new_smooth_nodes_for = total_covered_vars.difference(smoothed_vars)
+    num_new_smooth_nodes = len(total_covered_vars.difference(smoothed_vars))
+    # 4. return results
+    num_nodes_less = num_deletable - num_new_smooth_nodes
+    return num_nodes_less, num_deletable, num_new_smooth_nodes
+
+
+def _vars_smoothed_over(ddnnf) -> Set[int]:
+    """ all variables in the ddnnf that are smoothed over at least once. """
+    return {abs(node.node_field[0]) for (index, node) in ddnnf if
+            node.node_type == "disj" and
+            len(node.node_field) == 2 and
+            node.node_field[0] == -node.node_field[1]
+            }
 
 class DDNNFTraverserBottomUp:
 

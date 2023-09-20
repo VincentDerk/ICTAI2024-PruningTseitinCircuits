@@ -227,20 +227,34 @@ def _load_nnf(filename):
         f.seek(0)  # reset file position so we can iterate over it again
         # Add conj and disjunction nodes
         # correctly remapping each line reference
+        conj_cache = dict()  # cache so we do not create duplicate nodes.
+        disj_cache = dict()  # added because dsharp creates multiple smooth nodes.
         for line_nr0, line in enumerate(f):
             line_nr = line_nr0  # +0, bc "nnf" is a line (-1), and we count from 1 (+1)
             line = line.strip().split()
             if line[0] == "A":
                 # line[1] = number of children (ignore)
                 # line[2:] = all children
-                children = [line2idx[int(l)+1] for l in line[2:]]
-                line2idx[line_nr] = nnf.add_conj(children)
+                children = tuple(line2idx[int(l)+1] for l in line[2:])
+                cache_value = conj_cache.get(children, None)
+                if cache_value is None:
+                    node_idx = nnf.add_conj(children)
+                    conj_cache[children] = node_idx
+                else:
+                    node_idx = cache_value
+                line2idx[line_nr] = node_idx
             elif line[0] == "O":
                 # line[1] = decision on which basis the children differ
                 # line[2] = number of children
                 # line[3:] = all children
-                children = [line2idx[int(l)+1] for l in line[3:]]
-                line2idx[line_nr] = nnf.add_disj(children)
+                children = tuple(line2idx[int(l)+1] for l in line[3:])
+                cache_value = disj_cache.get(children, None)
+                if cache_value is None:
+                    node_idx = nnf.add_disj(children)
+                    disj_cache[children] = node_idx
+                else:
+                    node_idx = cache_value
+                line2idx[line_nr] = node_idx
     return nnf
 
 
