@@ -21,8 +21,9 @@ def get_tseitin_artifacts(ddnnf: DDNNF, tseitin_vars: Collection[int]) -> Formul
     # - the set of variables involved in the node itself or nodes below it.
 
     # compute model counts and variable sets (set of non-tseitin vars)
-    overlay_mc = get_model_count_overlay(ddnnf)
-    overlay_varsets = get_variable_overlay(ddnnf, ignore_vars=tseitin_vars)
+    overlay_mc = get_overlay_model_count(ddnnf)
+    overlay_contains_tseitin = get_overlay_contains_tseitin(ddnnf, tseitin_vars=tseitin_vars)
+    overlay_varsets = get_overlay_variables(ddnnf, ignore_vars=tseitin_vars)
 
     # check for each node whether it is an artifact based on model count.
     overlay_artifact = FormulaOverlayList(ddnnf)
@@ -32,16 +33,38 @@ def get_tseitin_artifacts(ddnnf: DDNNF, tseitin_vars: Collection[int]) -> Formul
             overlay_artifact[node_idx] = False
         elif node.node_type == "disj":
             num_non_tseitin_vars = len(overlay_varsets[node_idx])
-            is_artifact = (overlay_mc[node_idx] == 2 ** num_non_tseitin_vars)
+            contains_tseitin = overlay_contains_tseitin[node_idx]
+            is_artifact = (overlay_mc[node_idx] == 2 ** num_non_tseitin_vars) and contains_tseitin
             overlay_artifact[node_idx] = is_artifact
         elif node.node_type == "conj":
             children = node.node_field
             is_artifact = all(overlay_artifact[idx] for idx in children)
             overlay_artifact[node_idx] = is_artifact
-    return overlay_artifact, overlay_varsets
+    return overlay_artifact
 
 
-def get_variable_overlay(ddnnf, ignore_vars=None) -> FormulaOverlayList:
+def get_overlay_contains_tseitin(ddnnf, tseitin_vars: Collection[int]) -> FormulaOverlayList:
+    """
+    Create an overlay, capturing for each node whether it contains a tseitin variable.
+    :param ddnnf: The d-DNNF to create an overlay for.
+    :param tseitin_vars: The tseitin variables
+    :return: An overlay for ddnnf indicating for each node whether it contains a tseitin var.
+    """
+    overlay_varsets = FormulaOverlayList(ddnnf)
+    traversor = DDNNFTraverserBottomUp(ddnnf)
+    for node_idx, node in traversor.next_node():
+        if node.node_type == "atom":
+            overlay_varsets[node_idx] = node_idx in tseitin_vars
+        elif node.node_type == "disj":
+            children = node.node_field
+            overlay_varsets[node_idx] = any((overlay_varsets[abs(idx)] for idx in children))
+        elif node.node_type == "conj":
+            children = node.node_field
+            overlay_varsets[node_idx] = any((overlay_varsets[abs(idx)] for idx in children))
+    return overlay_varsets
+
+
+def get_overlay_variables(ddnnf, ignore_vars=None) -> FormulaOverlayList:
     """
     Create an overlay, capturing the variables used within each node.
     :param ddnnf: The d-DNNF to create an overlay for.
@@ -68,7 +91,7 @@ def get_variable_overlay(ddnnf, ignore_vars=None) -> FormulaOverlayList:
     return overlay_varsets
 
 
-def get_model_count_overlay(ddnnf) -> FormulaOverlayList:
+def get_overlay_model_count(ddnnf) -> FormulaOverlayList:
     """
     Create an overlay, capturing the unweighted model count for each node.
         This assumes the ddnnf is already smooth, otherwise the result may be incorrect.
@@ -99,8 +122,6 @@ def get_artifact_size(ddnnf: DDNNF, overlay_artifact: FormulaOverlayList) -> int
 
 
 class DDNNFTraverserBottomUp:
-    # TODO: implement a depth first search traversal?
-    # with the option to skip going lower into the subformula (when we encounter an artifact)
 
     def __init__(self, ddnnf: DDNNF):
         self.ddnnf = ddnnf

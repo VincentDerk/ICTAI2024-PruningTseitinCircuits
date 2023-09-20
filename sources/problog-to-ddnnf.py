@@ -33,6 +33,7 @@ from problog.engine import DefaultEngine
 
 from core.cnf import CNF
 from core.ddnnf import DDNNF, FormulaOverlayList
+from core.varinfo import VariableSetInfo
 
 
 class Timer(object):
@@ -74,9 +75,9 @@ def main(filename, output_filename, k="dsharp"):
     print_lf_compact(gp)
 
     print("\n=== Conversion to CNF ===")
-    cnf, tseitin_vars, node2name = logicdag_to_cnf(gp)
+    cnf, var_info = logicdag_to_cnf(gp)
 #    print_cnf(cnf)
-    print(node2name)
+    print(var_info)
 
     print("\n=== Compile to d-DNNF ===")
     ddnnf = cnf_to_ddnnf(cnf)
@@ -86,9 +87,9 @@ def main(filename, output_filename, k="dsharp"):
     with open(output_filename_ddnnf, "wb") as f:
         pickle.dump(ddnnf, f)
 
-    output_filename_tseitin = output_filename + "_tseitin.pickle"
-    with open(output_filename_tseitin, "wb") as f:
-        pickle.dump(tseitin_vars, f)
+    output_filename_vars = output_filename + "_varinfo.pickle"
+    with open(output_filename_vars, "wb") as f:
+        pickle.dump(var_info, f)
 
 
 def print_lf_compact(lf):
@@ -105,7 +106,7 @@ def print_lf_compact(lf):
             print(f"unsupported node type: {node_type}")
 
 
-def logicdag_to_cnf(dag: LogicDAG) -> Tuple[CNF,List[int], Dict[int,str]]:
+def logicdag_to_cnf(dag: LogicDAG) -> Tuple[CNF, VariableSetInfo]:
     """Transform an acyclic propositional program to a CNF using Clark's completion.
 
     :param dag: acyclic program to transform
@@ -145,7 +146,7 @@ def logicdag_to_cnf(dag: LogicDAG) -> Tuple[CNF,List[int], Dict[int,str]]:
             for clause in c.as_clauses():
                 cnf.add_clause(clause)
 
-        return cnf, tseitin_vars, node2name
+        return cnf, VariableSetInfo(node2name, tseitin_vars)
 
 
 def cnf_to_ddnnf(cnf: CNF, k="dsharp"):
