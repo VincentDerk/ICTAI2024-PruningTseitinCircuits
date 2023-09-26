@@ -58,6 +58,9 @@ class DDNNF:
     def __getitem__(self, item):
         return self.nodes.__getitem__(item)
 
+    def __len__(self):
+        return len(self.nodes)-1
+
 
 class FormulaOverlayList:
     """

@@ -27,7 +27,7 @@ class CNF:
     def clause_count(self):
         return len(self.clauses)
 
-    def add_clause(self, *literals):
+    def add_clause(self, literals):
         self.clauses.append(list(literals))
 
     def add_iff_disj(self, head: int, *body):
