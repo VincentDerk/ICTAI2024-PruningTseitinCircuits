@@ -12,7 +12,7 @@ class DDNNF:
         Variables (1-n) make up the first nodes.
 
         node_field is indexed from 1 (because can not negate 0)
-        to avoid confusion, we add a dummy node.
+        to avoid confusion, we automatically add a dummy node.
     """
     def __init__(self):
         self.nodes = [LNODE("dummy", "")]  # type: list[LNODE]
