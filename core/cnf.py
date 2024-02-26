@@ -71,3 +71,20 @@ class CNF:
             return " ".join((str(l) for l in cl)) + " 0"
         result += "\n".join((map(_clause_to_str, self.clauses)))
         return result
+
+
+def read_cnf(filename_cnf: str) -> CNF:
+    """ read CNF from DIMACS file. """
+    cnf = CNF()
+    with open(filename_cnf, "r") as f:
+        for line in f:
+            if line.startswith("c"):
+                continue
+            elif line.startswith("p cnf"):
+                varcount = int(line.split(" ")[2])
+                cnf.set_atom_count(varcount)
+            else:
+                line2 = line.replace("  ", " ").strip().split(" ")
+                if len(line2) > 1:  # if line only contains enter, do nothing.
+                    cnf.add_clause((int(x) for x in line2[:-1]))
+    return cnf
