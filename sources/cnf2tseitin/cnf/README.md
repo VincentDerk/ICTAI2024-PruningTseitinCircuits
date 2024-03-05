@@ -1,4 +1,4 @@
-The model count instances are obtained from the Model Counting COmpetition 2023.
+The model count instances are obtained from the Model Counting Competition 2023.
 
 Model Counting Competition 2023: [link](https://mccompetition.org/2023/mc_description)
 
