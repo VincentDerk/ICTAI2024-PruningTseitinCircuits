@@ -144,10 +144,6 @@ def logicdag_to_cnf(dag: LogicDAG) -> Tuple[CNF, VariableSetInfo]:
         return cnf, VariableSetInfo(node2name, tseitin_vars)
 
 
-
-
-
-
 if __name__ == "__main__":
     import argparse
     argparser = argparse.ArgumentParser()
