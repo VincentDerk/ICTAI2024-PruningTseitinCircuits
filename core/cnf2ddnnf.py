@@ -1,27 +1,33 @@
 import os
+import resource
 import subprocess
 import tempfile
-
-from problog.ddnnf_formula import DSharpError
+import time
 
 from core.cnf import CNF
 from core.ddnnf import DDNNF
 
 
-def cnf_to_ddnnf(cnf: CNF, k="D4") -> DDNNF:
+def cnf_to_ddnnf(cnf: CNF, k="D4", timeout=600) -> (DDNNF, int):
     if k == "dsharp":
         return _compile_with_dsharp(cnf, smooth=True)
     else:
-        return _compile_with_d4(cnf)
+        return _compile_with_d4(cnf, timeout=timeout)
 
 
-def _compile_with_d4(cnf: CNF):
+def _compile_with_d4(cnf: CNF, timeout):
     result = None
+    compile_time = 0
     fd1, cnf_file = tempfile.mkstemp(".cnf")
     fd2, nnf_file = tempfile.mkstemp(".nnf")
     os.close(fd1)
     os.close(fd2)
+    # cmd = f"ulimit -S -m $((3*1024*1024)) && ../bin/d4_static {cnf_file} -dDNNF -out={nnf_file}"
     cmd = ["../bin/d4_static", cnf_file, "-dDNNF", f"-out={nnf_file}"]
+
+    def _set_mem_resources():
+        MAX_VIRTUAL_MEMORY = 4 * 1024 * 1024 * 1024  # 3GB (in bytes)
+        resource.setrlimit(resource.RLIMIT_AS, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
 
     try:
         # write dimacs
@@ -29,7 +35,11 @@ def _compile_with_d4(cnf: CNF):
             f.write(cnf.to_dimacs())
 
         # call compiler
-        result = subprocess.run(cmd, shell=False, check=True, stdout=subprocess.DEVNULL)
+        start_time = time.time()
+        result = subprocess.run(cmd, shell=False, check=True, stdout=subprocess.DEVNULL,
+                                timeout=timeout, preexec_fn=_set_mem_resources)
+        end_time = time.time()
+        compile_time = end_time - start_time
         success = result.returncode == 0
         if not success:
             raise Exception(f"D4 subprocess failed {cmd}")
@@ -37,6 +47,8 @@ def _compile_with_d4(cnf: CNF):
         # load result
         result = _load_nnf_d4(nnf_file, cnf.var_count)
     except subprocess.CalledProcessError as err:
+        raise err
+    except subprocess.TimeoutExpired as err:
         raise err
     finally:
         try:
@@ -47,7 +59,7 @@ def _compile_with_d4(cnf: CNF):
             os.remove(nnf_file)
         except OSError:
             pass
-    return result
+    return result, compile_time
 
 
 def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
@@ -71,7 +83,11 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
                 nnf_graph_d4.extend((None for _ in range(extend_with_nb)))
             if nnf_graph_d4[_curr_node_idx] is None:
                 nnf_graph_d4[_curr_node_idx] = list()
-            nnf_graph_d4[_curr_node_idx].append((_child_node_idx, _implied_literals))
+            if node_types[_child_node_idx] != "f":
+                # if child node is false, then we do not add it to the or node.
+                # this will then become an or node with one child
+                # which is treated as an AND node during construction into d-DNNF (below).
+                nnf_graph_d4[_curr_node_idx].append((_child_node_idx, _implied_literals))
 
         def _add_and_node(_curr_node_idx, _child_node_idx):
             if _curr_node_idx >= len(nnf_graph_d4):
@@ -82,7 +98,7 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
             nnf_graph_d4[_curr_node_idx].append(child_node_idx)
 
         for line in f.readlines():
-            print(line)
+            # print(line)
             line = line[:-2].strip().split()
             node_type = line[0]
             is_node_def = node_type in ("o", "a", "t", "f")
@@ -115,6 +131,7 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
                 return node_map[d4_idx]
 
             node_type = node_types[d4_idx]
+
             if node_type == "t":
                 return -1
             elif node_type == "f":
@@ -123,8 +140,14 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
                 node_info = nnf_graph_d4[d4_idx]
                 if len(node_info) == 1:
                     child, implied_literals = node_info[0]
-                    assert len(implied_literals) == 0
-                    return _recursive_complete_ddnnf(child)
+                    if len(implied_literals) == 0:
+                        return _recursive_complete_ddnnf(child)
+                    else:
+                        child1 = _recursive_complete_ddnnf(child)
+                        children = (child1,) + tuple(implied_literals)
+                        and_ddnnf_node = ddnnf.add_conj(children)
+                        node_map[d4_idx] = and_ddnnf_node
+                        return and_ddnnf_node
 
                 assert len(node_info) == 2
                 child1, implied_literals1 = node_info[0]
@@ -163,7 +186,7 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
                 return or_ddnnf_node
 
             elif node_type == "a":
-                # create and node and return it. We assume none is "True"
+                # create and node and return it.
                 children = nnf_graph_d4[d4_idx]
                 assert len(children) > 1
                 mapped_children = []
@@ -184,6 +207,7 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
 
 def _compile_with_dsharp(cnf: CNF, smooth=True):
     result = None
+    compile_time = 0
     fd1, cnf_file = tempfile.mkstemp(".cnf")
     fd2, nnf_file = tempfile.mkstemp(".nnf")
     os.close(fd1)
@@ -200,10 +224,13 @@ def _compile_with_dsharp(cnf: CNF, smooth=True):
             f.write(cnf.to_dimacs())
 
         # call compiler
+        start_time = time.time()
         result = subprocess.run(cmd, shell=False, check=True, stdout=subprocess.DEVNULL)
+        end_time = time.time()
+        compile_time = end_time - start_time
         success = result.returncode == 0
         if not success:
-            raise DSharpError()
+            raise Exception(f"dSharp subprocess failed {cmd}")
 
         # load result
         result = _load_nnf(nnf_file)
@@ -218,7 +245,7 @@ def _compile_with_dsharp(cnf: CNF, smooth=True):
             os.remove(nnf_file)
         except OSError:
             pass
-    return result
+    return result, compile_time
 
 
 def _load_nnf(filename: str) -> DDNNF:
