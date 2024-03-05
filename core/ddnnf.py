@@ -85,37 +85,3 @@ class FormulaOverlayList:
 
     def __setitem__(self, key: int, value):
         self.overlay[key] = value
-
-
-def ddnnf_to_dot(ddnnf, prop_function=None) -> str:
-    """Write out in GraphViz (dot) format.
-    :param ddnnf: to create dot representation of.
-    :prop_function: function taking node_index, node and returning additional node properties
-    :return: string containing dot representation
-    """
-    if prop_function is None:
-        prop_function = lambda i, n: ""
-
-    s = "digraph GP {\n"
-    for index, node in ddnnf:
-        nprop = prop_function(index, node)
-        if nprop == "":
-            nprop = 'fillcolor="white"'
-        nprop = ", " + nprop
-        if node.node_type == "atom":
-            s += f'{index} [label="{index}", shape="box", style="filled"{nprop}];\n'
-        elif node.node_type == "conj":
-            children = node.node_field
-            s += f'{index} [label="&and;", shape="circle", style="filled"{nprop}];\n'
-            for child_idx in children:
-                neg_label = '[arrowhead="normal", dir="both", arrowtail="odot"]' if child_idx < 0 else ""
-                s += f"{index} -> {abs(child_idx)}{neg_label}\n"
-        elif node.node_type == "disj":
-            children = node.node_field
-            s += f'{index} [label="&or;", shape="circle", style="filled"{nprop}];\n'
-            for child_idx in children:
-                neg_label = '[arrowhead="normal", dir="both", arrowtail="odot"]' if child_idx < 0 else ""
-                s += f"{index} -> {abs(child_idx)}{neg_label}\n"
-        else:
-            raise TypeError(f"Unexpected node type: {node.node_type}")
-    return s + "}"
