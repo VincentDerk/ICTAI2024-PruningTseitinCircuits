@@ -1,0 +1,242 @@
+import os
+import pickle
+import subprocess
+import sys
+import time
+from typing import Collection
+
+from tqdm import tqdm
+
+from cnf_analysis.cnf2tseitin import determine_tseitin_from_cnf
+from core.ddnnf_extra import existential_quantification, smooth_ddnnf, \
+    existential_quantification_tseitin
+from detafter.postdetector import DDNNFTraverserBottomUp
+
+# To use ../core/ imports, we are adding the parent folder to sys.path
+script_dir = os.path.dirname(os.path.realpath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(script_dir))
+sys.path.append(parent_dir)
+
+from core.cnf import read_cnf
+from core.cnf2ddnnf import cnf_to_ddnnf
+from core.ddnnf import DDNNF, FormulaOverlayList
+from core.ddnnf_evaluator import compute_model_count, DDNNFTraverserTopDown
+from core.varinfo import VariableSetInfo
+
+
+def _compile_instance(cnf_filepath: str, timeout) -> (DDNNF, int, str):
+    """ returns d-DNNF, compile time and status """
+    ddnnf = None
+    compile_time = 0
+    cnf = read_cnf(cnf_filepath)
+    try:
+        ddnnf, compile_time = cnf_to_ddnnf(cnf, timeout=timeout)
+        status = "success"
+    except subprocess.CalledProcessError as err:
+        print(err, file=sys.stderr)
+        status = "failed"
+    except subprocess.TimeoutExpired as err:
+        print(f"Timeout error when compiling {cnf_filepath}. Skipped it.")
+        status = "timeout"
+    return ddnnf, compile_time, status
+
+
+def _generate_result_csv(result_csv_path):
+    if not os.path.exists(result_csv_path):
+        os.makedirs(os.path.dirname(result_csv_path), exist_ok=True)
+
+        # cnf + information
+        # compile time + when compiled?
+        # ddnnf node count (after smoothing)
+        # ddnnf node count after existential quantification of tseitin variables (after smoothing)
+        # ddnnf node count after removing tseitin artifacts (+ adding smoothing nodes)
+        # NOTE: node count includes atoms. To exclude these, subtract var_count from it
+        with open(result_csv_path, "w+") as f:
+            f.write("cnf_path,clause_count,var_count,tseitin_var_count,"
+                    "compile_time,timestamp,"
+                    "ddnnf_nodecount_plus,ddnnf_nodecount_mult,"
+                    "sddnnf_nodecount_plus,sddnnf_nodecount_mult,"
+                    "ddnnf_exist_nodecount_plus,ddnnf_exist_nodecount_mult,"
+                    "sddnnf_exist_nodecount_plus,sddnnf_exist_nodecount_mult,"
+                    "ddnnf_tseitin_nodecount_plus,ddnnf_tseitin_nodecount_mult,"
+                    "sddnnf_tseitin_nodecount_plus,sddnnf_tseitin_nodecount_mult\n")
+
+
+def _write_to_result_csv(result_csv_path: str, result: dict):
+    cnf_path = result["cnf_path"]
+    clause_count = result["clause_count"]
+    var_count = result["var_count"]
+    tseitin_var_count = result["tseitin_var_count"]
+    compile_time = result["compile_time"]
+    timestamp = result["timestamp"]
+    ddnnf_nodecount_plus = result["ddnnf_nodecount_plus"]
+    ddnnf_nodecount_mult = result["ddnnf_nodecount_mult"]
+    sddnnf_nodecount_plus = result["sddnnf_nodecount_plus"]
+    sddnnf_nodecount_mult = result["sddnnf_nodecount_mult"]
+    ddnnf_exist_nodecount_plus = result["ddnnf_exist_nodecount_plus"]
+    ddnnf_exist_nodecount_mult = result["ddnnf_exist_nodecount_mult"]
+    sddnnf_exist_nodecount_plus = result["sddnnf_exist_nodecount_plus"]
+    sddnnf_exist_nodecount_mult = result["sddnnf_exist_nodecount_mult"]
+    ddnnf_tseitin_nodecount_plus = result["ddnnf_tseitin_nodecount_plus"]
+    ddnnf_tseitin_nodecount_mult = result["ddnnf_tseitin_nodecount_mult"]
+    sddnnf_tseitin_nodecount_plus = result["sddnnf_tseitin_nodecount_plus"]
+    sddnnf_tseitin_nodecount_mult = result["sddnnf_tseitin_nodecount_mult"]
+    with open(result_csv_path, "a") as f:
+        f.write(f"{cnf_path},{clause_count},{var_count},{tseitin_var_count},"
+                f"{compile_time},{timestamp},"
+                f"{ddnnf_nodecount_plus},{ddnnf_nodecount_mult},"
+                f"{sddnnf_nodecount_plus},{sddnnf_nodecount_mult}"
+                f"{ddnnf_exist_nodecount_plus},{ddnnf_exist_nodecount_mult}"
+                f"{sddnnf_exist_nodecount_plus},{sddnnf_exist_nodecount_mult}"
+                f"{ddnnf_tseitin_nodecount_plus},{ddnnf_tseitin_nodecount_mult}"
+                f"{sddnnf_tseitin_nodecount_plus},{sddnnf_tseitin_nodecount_mult}\n")
+
+
+def _finished_cnfs(result_csv_path):
+    finished_instances = set()
+    with open(result_csv_path, "r") as f:
+        for line in f.readlines()[1:]:
+            line = line.split(",")
+            instance_path = line[0]
+            finished_instances.add(instance_path)
+    return finished_instances
+
+
+def _read_instance_list(csv_filepath):
+    instances = list()
+    with open(csv_filepath, "r") as f:
+        for line in f.readlines()[1:]:
+            line = line.split(",")
+            instance_path = line[0]
+            instances.append(instance_path)
+    return instances
+
+
+def _get_varinfo(cnf_instance) -> VariableSetInfo:
+    if isinstance(cnf_instance, str):
+        # if cnf_instance is a filepath (str), first read the cnf
+        cnf_instance = read_cnf(cnf_instance)
+    tseitin_vars = determine_tseitin_from_cnf(cnf_instance)
+    var_info = VariableSetInfo(tseitin_vars=tseitin_vars)
+    assert len(tseitin_vars) > 0, "No tseitin variables detected, why create this?"
+    return var_info
+
+
+
+def _compute_nb_operations(ddnnf: DDNNF) -> (int, int):
+    """
+    Compute the number of addition and multiplication operations within the given ddnnf.
+    This method uses a bottom-up traversal.
+    :param ddnnf: The d-DNNF in which to compute the number of operations.
+    :return: The number of addition and multiplication operations (as a tuple) in ddnnf.
+        A non-binary operation is reduced to a binary one, e.g., +(a,b,c) counts as two +.
+    """
+    nb_plus = 0
+    nb_times = 0
+    traversor = DDNNFTraverserBottomUp(ddnnf)
+    for node_idx, node in traversor.next_node():
+        if node.node_type == "disj":
+            nb_plus += len(node.node_field) - 1
+        elif node.node_type == "conj":
+            nb_times += len(node.node_field) - 1
+    return nb_plus, nb_times
+
+
+def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
+    # ensure result_csv_path exists.
+    _generate_result_csv(result_csv_path)
+
+    # read in result_csv_path
+    skip_instances = _finished_cnfs(result_csv_path)
+
+    # extract instances-to-compile from cnf_csv_path
+    instances = _read_instance_list(cnf_csv_path)
+    instances = [inst for inst in instances if inst not in skip_instances]
+
+    # for each instance-to-compile
+    for instance_filepath in instances:
+        result_dict = dict()
+        result_dict["cnf_path"] = instance_filepath
+
+        #   get_cnf_info
+        cnf = read_cnf(instance_filepath)
+        var_count = cnf.var_count
+        clause_count = len(cnf.clauses)
+        result_dict["var_count"] = var_count
+        result_dict["clause_count"] = clause_count
+
+        #   extract varinfo from instance
+        var_info = _get_varinfo(cnf)
+        result_dict["tseitin_var_count"] = len(var_info.tseitin_vars)
+
+        #   compile instance to ddnnf
+        ddnnf, status, compile_time = _compile_instance(instance_filepath, timeout=timeout)
+        result_dict["compile_time"] = compile_time
+        result_dict["timestamp"] = time.time()
+        print(f"Compiled {instance_filepath} with {status} and compile time {compile_time}s.")
+
+        if ddnnf is not None and status == "success":
+            # ddnnf_nodecount
+            nb_plus, nb_times = _compute_nb_operations(ddnnf)
+            result_dict["ddnnf_nodecount_plus"] = nb_plus
+            result_dict["ddnnf_nodecount_mult"] = nb_times
+
+            # simple existential quantification of tseitin variables
+            ddnnfp = existential_quantification(ddnnf, var_info.tseitin_vars)
+            nb_plus, nb_times = _compute_nb_operations(ddnnfp)
+            del ddnnfp
+            result_dict["ddnnf_exist_nodecount_plus"] = nb_plus
+            result_dict["ddnnf_exist_nodecount_mult"] = nb_times
+
+            # tseitin-artifact removal + existential quantification
+            ddnnft = existential_quantification_tseitin(ddnnf, var_info.tseitin_vars)
+            nb_plus, nb_times = _compute_nb_operations(ddnnft)
+            result_dict["ddnnf_tseitin_nodecount_plus"] = nb_plus
+            result_dict["ddnnf_tseitin_nodecount_mult"] = nb_times
+
+            # smooth tseitin ddnnf
+            sddnnft = smooth_ddnnf(ddnnft)
+            nb_plus, nb_times = _compute_nb_operations(sddnnft)
+            del sddnnft
+            result_dict["sddnnf_tseitin_nodecount_plus"] = nb_plus
+            result_dict["sddnnf_tseitin_nodecount_mult"] = nb_times
+
+            # sddnnf_nodecount
+            sddnnf = smooth_ddnnf(ddnnf)
+            del ddnnf
+            nb_plus, nb_times = _compute_nb_operations(sddnnf)
+            result_dict["sddnnf_nodecount_plus"] = nb_plus
+            result_dict["sddnnf_nodecount_mult"] = nb_times
+
+            # simple existential quantification of tseitin variables
+            sddnnfp = existential_quantification(sddnnf, var_info.tseitin_vars)
+            nb_plus, nb_times = _compute_nb_operations(sddnnfp)
+            del sddnnfp
+            del sddnnf
+            result_dict["sddnnf_exist_nodecount_plus"] = nb_plus
+            result_dict["sddnnf_exist_nodecount_mult"] = nb_times
+
+        elif status == "timeout":
+            result_dict["ddnnf_nodecount_plus"] = "TO"
+            result_dict["ddnnf_nodecount_mult"] = "TO"
+            result_dict["ddnnf_exist_nodecount_plus"] = "TO"
+            result_dict["ddnnf_exist_nodecount_mult"] = "TO"
+            result_dict["ddnnf_tseitin_nodecount_plus"] = "TO"
+            result_dict["ddnnf_tseitin_nodecount_mult"] = "TO"
+            result_dict["sddnnf_nodecount_plus"] = "TO"
+            result_dict["sddnnf_nodecount_mult"] = "TO"
+            result_dict["sddnnf_exist_nodecount_plus"] = "TO"
+            result_dict["sddnnf_exist_nodecount_mult"] = "TO"
+            result_dict["sddnnf_tseitin_nodecount_plus"] = "TO"
+            result_dict["sddnnf_tseitin_nodecount_mult"] = "TO"
+
+        if status == "success" or status == "timeout":
+            _write_to_result_csv(result_csv_path, result_dict)
+        # else: we printed the error and should look into this instance.
+
+
+if __name__ == "__main__":
+    cnf_instances_csv = "results/tseitin-var-counts-mcc-filtered.csv"
+    result_csv = "results/results_cnf_exp.csv"
+    execute_experiment(cnf_instances_csv, result_csv, timeout=600)
+
