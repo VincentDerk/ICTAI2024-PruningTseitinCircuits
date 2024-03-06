@@ -1,12 +1,63 @@
 import functools
 
 from core.ddnnf import DDNNF, FormulaOverlayList
-from core.ddnnf_evaluator import DDNNFTraverserBottomUp
+from core.ddnnf_evaluator import DDNNFTraverserBottomUp, DDNNFTraverserTopDown
+from detafter.postdetector import get_tseitin_artifacts
 
 
 def _polarity(idx):
     """ returns -1 if idx < 0, else 1. """
     return -1 if idx < 0 else 1
+
+
+def existential_quantification_tseitin(ddnnf, tseitin_vars: set) -> DDNNF:
+    new_ddnnf = DDNNF()
+    overlay_artifact = get_tseitin_artifacts(ddnnf, tseitin_vars)
+
+    # mark nodes for removal - top/down
+    traversor = DDNNFTraverserTopDown(ddnnf)
+    overlay_active = FormulaOverlayList(ddnnf)
+    overlay_active[-1] = True
+    for node_idx, node in traversor.next_node():
+        if overlay_active[node_idx]:
+            if node.node_type == "disj" or node.node_type == "conj":
+                children = node.node_field
+                for child_idx in children:
+                    overlay_active[abs(child_idx)] = not overlay_artifact[abs(child_idx)]
+        else:
+            overlay_active[node_idx] = False
+    del overlay_artifact  # not needed anymore, use overlay_active
+
+    # create new-ddnnf bottom up
+    overlay_new_idx = FormulaOverlayList(ddnnf)
+    traversor = DDNNFTraverserBottomUp(ddnnf)
+    for node_idx, node in traversor.next_node():
+        if node.node_type == "atom":
+            assert overlay_active[node_idx], ("I assume no variable disappears completely. "
+                                              "Adjustment would be needed for smoothing.")
+            new_idx = new_ddnnf.add_atom(node.node_field)
+            overlay_new_idx[node_idx] = new_idx
+        elif node.node_type == "disj":
+            if overlay_active[node_idx]:
+                children = node.node_field
+                # if a disj is not an artifact, then its direct children are not either.
+                # by definition of d-DNNF, artifact, and model counts.
+                assert all(overlay_active[abs(idx)] for idx in children)
+                new_children = tuple((_polarity(idx) * overlay_new_idx[abs(idx)] for idx in children))
+                new_idx = new_ddnnf.add_disj(new_children)
+                overlay_new_idx[node_idx] = new_idx
+        elif node.node_type == "conj":
+            if overlay_active[node_idx]:
+                children = node.node_field
+                new_children = tuple((_polarity(idx) * overlay_new_idx[abs(idx)] for idx in children if overlay_active[abs(idx)]))
+                if len(new_children) == 1:
+                    overlay_new_idx[node_idx] = new_children[0]
+                else:
+                    assert len(new_children) > 1, ("== 0 is impossible because if each child is "
+                                                   "an artifact, then this node can not be active.")
+                    new_idx = new_ddnnf.add_conj(new_children)
+                    overlay_new_idx[node_idx] = new_idx
+    return new_ddnnf
 
 
 def smooth_ddnnf(ddnnf: DDNNF) -> DDNNF:
@@ -86,7 +137,7 @@ def existential_quantification(ddnnf, propagate_vars: set) -> DDNNF:
 
     for node_idx, node in traversor.next_node():
         if node.node_type == "atom":
-            if node_idx in propagate_vars:
+            if node.node_field in propagate_vars:
                 overlay_new_idx[node_idx] = True
             else:
                 new_idx = new_ddnnf.add_atom(node.node_field)
@@ -154,3 +205,54 @@ def ddnnf_to_dot(ddnnf, prop_function=None) -> str:
         else:
             raise TypeError(f"Unexpected node type: {node.node_type}")
     return s + "}"
+
+
+#
+#
+# ----- Overlays methods -----
+#
+#
+
+def get_overlay_variables(ddnnf, ignore_vars=None) -> FormulaOverlayList:
+    """
+    Create an overlay of the variables used within each node.
+    :param ddnnf: The d-DNNF to create an overlay for.
+    :param ignore_vars: The variables to ignore. Ideally contains is a fast method.
+    :return: An overlay for ddnnf where each node has its set of variables stored.
+    """
+    if ignore_vars is None:
+        ignore_vars = set()
+    overlay_varsets = FormulaOverlayList(ddnnf)
+    traversor = DDNNFTraverserBottomUp(ddnnf)
+    for node_idx, node in traversor.next_node():
+        if node.node_type == "atom":
+            overlay_varsets[node_idx] = {node_idx} if node_idx not in ignore_vars else set()
+        elif node.node_type == "disj" or node.node_type == "conj":
+            children = node.node_field
+            overlay_varsets[node_idx] = functools.reduce(lambda x, y: x.union(y),
+                                                         (overlay_varsets[abs(idx)] for idx in
+                                                          children))
+    return overlay_varsets
+
+
+def active_nodes_overlay(ddnnf: DDNNF) -> FormulaOverlayList:
+    """
+    Create an overlay, capturing the active nodes of each node.
+    A node is active if it is connected to the root (final) node of ddnnf.
+    :param ddnnf: The d-DNNF to create an overlay for.
+    :return: An overlay for ddnnf where each active node is True, the others False.
+    """
+    overlay_active = FormulaOverlayList(ddnnf)
+    traversor = DDNNFTraverserTopDown(ddnnf)
+    overlay_active[-1] = True
+    for node_idx, node in traversor.next_node():
+        # if current node is active, activate children
+        if overlay_active[node_idx] is True:
+            if node.node_type == "disj" or node.node_type == "conj":
+                children = node.node_field
+                for child_idx in children:
+                    overlay_active[abs(child_idx)] = True
+        else:
+            assert overlay_active[node_idx] is None
+            overlay_active[node_idx] = False
+    return overlay_active
