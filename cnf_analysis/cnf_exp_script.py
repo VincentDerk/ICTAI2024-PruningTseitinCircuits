@@ -215,7 +215,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             # smoothing simple existential quantification of tseitin variables
             sddnnfp = smooth_ddnnf(ddnnfp)
             del ddnnfp
-            nb_plus, nb_times = _compute_nb_operations(sddnnfp)
+            nb_plus, nb_times = _compute_nb_operations(sddnnfp, include_unused_vars=True)
             print(f"\tSmoothing after simple existential quantification. + ({nb_plus}) * ({nb_times})")
             del sddnnfp
             result_dict["sddnnf_exist_nodecount_plus"] = nb_plus
