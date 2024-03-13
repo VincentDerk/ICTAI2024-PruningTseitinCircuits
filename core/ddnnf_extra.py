@@ -324,7 +324,7 @@ def ddnnf_to_dot(ddnnf, prop_function=None) -> str:
 def compress_ddnnf(ddnnf: DDNNF) -> DDNNF:
     """
     Compresses the given d-DNNF.
-    - Remove nodes not contributing (connectd) to the root node. If an atom is not used,
+    - Remove nodes not contributing (connected) to the root node. If an atom is not used,
     it is moved to the unused_vars set.
 
     In the future, more optimisations may be included.
@@ -334,6 +334,7 @@ def compress_ddnnf(ddnnf: DDNNF) -> DDNNF:
     overlay_active = active_nodes_overlay(ddnnf)
     overlay_new_idx = FormulaOverlayList(ddnnf)
     new_ddnnf = DDNNF()
+    new_ddnnf.unused_vars = ddnnf.unused_vars.copy()
     traversor = DDNNFTraverserBottomUp(ddnnf)
     for node_idx, node in traversor.next_node():
         if overlay_active[node_idx]:
