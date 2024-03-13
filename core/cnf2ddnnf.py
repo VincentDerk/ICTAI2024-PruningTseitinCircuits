@@ -26,8 +26,10 @@ def _compile_with_d4(cnf: CNF, timeout):
     cmd = ["../bin/d4_static", cnf_file, "-dDNNF", f"-out={nnf_file}"]
 
     def _set_mem_resources():
-        MAX_VIRTUAL_MEMORY = 4 * 1024 * 1024 * 1024  # 3GB (in bytes)
+        MAX_VIRTUAL_MEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
         resource.setrlimit(resource.RLIMIT_AS, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
+        # resource.setrlimit(resource.RLIMIT_DATA, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
+        # resource.setrlimit(resource.RLIMIT_STACK, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
 
     try:
         # write dimacs
@@ -49,6 +51,8 @@ def _compile_with_d4(cnf: CNF, timeout):
     except subprocess.CalledProcessError as err:
         raise err
     except subprocess.TimeoutExpired as err:
+        raise err
+    except MemoryError as err:
         raise err
     finally:
         try:
