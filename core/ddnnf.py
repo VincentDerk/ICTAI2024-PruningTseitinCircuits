@@ -17,6 +17,7 @@ class DDNNF:
     def __init__(self):
         self.nodes = [LNODE("dummy", "")]  # type: list[LNODE]
         self.var_count = 0
+        self.unused_vars = set()  # variables that are not used, but are present in this context
 
     def add_node(self, node_type: str, node_field):
         """
@@ -44,7 +45,7 @@ class DDNNF:
 
     def is_bottom_up(self):
         """ This should be true unless an assumption is violated (cf. class description) """
-        for index, node in enumerate(self):
+        for index, node in self:
             if node.node_type == "conj" or node.node_type == "disj":
                 children = node.node_field
                 if any((abs(child_index) > index) for child_index in children):
