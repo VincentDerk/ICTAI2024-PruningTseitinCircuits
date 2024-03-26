@@ -2,6 +2,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 class _ResultObj:
 
     def __init__(self, cnf_path):

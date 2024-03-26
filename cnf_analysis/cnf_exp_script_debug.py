@@ -1,7 +1,7 @@
 import resource
 import time
 
-from cnf_analysis.cnf_exp_script import _compute_nb_operations, _compile_instance, _get_varinfo
+from cnf_analysis.cnf_exp_script import compute_nb_operations, _compile_instance, _get_varinfo
 from core.cnf import read_cnf
 from core.ddnnf_extra import compress_ddnnf, smooth_ddnnf, existential_quantification_tseitin, \
     existential_quantification
@@ -31,14 +31,14 @@ def execute_experiment(instance_filepath, timeout=600):
         ddnnf = compress_ddnnf(ddnnf)
 
         # ddnnf_nodecount
-        nb_plus, nb_times = _compute_nb_operations(ddnnf)
+        nb_plus, nb_times = compute_nb_operations(ddnnf)
         print(f"\td-DNNF after compression. + ({nb_plus}) * ({nb_times})")
 
         # sddnnf_nodecount
         start_time = time.time()
         sddnnf = smooth_ddnnf(ddnnf)
         end_time = time.time()
-        nb_plus, nb_times = _compute_nb_operations(sddnnf, include_unused_vars=True)
+        nb_plus, nb_times = compute_nb_operations(sddnnf, include_unused_vars=True)
         print(f"\tSmoothing took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
         del sddnnf
 
@@ -46,14 +46,14 @@ def execute_experiment(instance_filepath, timeout=600):
         start_time = time.time()
         ddnnfp = existential_quantification(ddnnf, var_info.tseitin_vars)
         end_time = time.time()
-        nb_plus, nb_times = _compute_nb_operations(ddnnfp)
+        nb_plus, nb_times = compute_nb_operations(ddnnfp)
         print(
             f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times}) with unused vars {len(ddnnfp.unused_vars)}")
 
         # smoothing simple existential quantification of tseitin variables
         sddnnfp = smooth_ddnnf(ddnnfp)
         del ddnnfp
-        nb_plus, nb_times = _compute_nb_operations(sddnnfp, include_unused_vars=True)
+        nb_plus, nb_times = compute_nb_operations(sddnnfp, include_unused_vars=True)
         print(f"\tSmoothing after simple existential quantification. + ({nb_plus}) * ({nb_times})")
         del sddnnfp
 
@@ -63,14 +63,14 @@ def execute_experiment(instance_filepath, timeout=600):
         print(f"{len(ddnnft)} and {len(ddnnft.unused_vars)} unused vars")
         del ddnnf
         end_time = time.time()
-        nb_plus, nb_times = _compute_nb_operations(ddnnft)
+        nb_plus, nb_times = compute_nb_operations(ddnnft)
         print(
             f"\tExistential quantification witth Tseitin took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
 
         # smooth tseitin ddnnf
         sddnnft = smooth_ddnnf(ddnnft)
         del ddnnft
-        nb_plus, nb_times = _compute_nb_operations(sddnnft, include_unused_vars=True)
+        nb_plus, nb_times = compute_nb_operations(sddnnft, include_unused_vars=True)
         del sddnnft
         print(f"\tSmooth after Tseitin. + ({nb_plus}) * ({nb_times})")
 

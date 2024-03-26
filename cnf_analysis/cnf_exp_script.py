@@ -122,7 +122,7 @@ def _get_varinfo(cnf_instance) -> VariableSetInfo:
     return var_info
 
 
-def _compute_nb_operations(ddnnf: DDNNF, include_unused_vars=False) -> (int, int):
+def compute_nb_operations(ddnnf: DDNNF, include_unused_vars=False) -> (int, int):
     """
     Compute the number of addition and multiplication operations within the given ddnnf.
     This method uses a bottom-up traversal.
@@ -188,7 +188,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             ddnnf = compress_ddnnf(ddnnf)
 
             # ddnnf_nodecount
-            nb_plus, nb_times = _compute_nb_operations(ddnnf)
+            nb_plus, nb_times = compute_nb_operations(ddnnf)
             print(f"\td-DNNF after compression. + ({nb_plus}) * ({nb_times})")
             result_dict["ddnnf_nodecount_plus"] = nb_plus
             result_dict["ddnnf_nodecount_mult"] = nb_times
@@ -197,7 +197,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             start_time = time.time()
             sddnnf = smooth_ddnnf(ddnnf)
             end_time = time.time()
-            nb_plus, nb_times = _compute_nb_operations(sddnnf, include_unused_vars=True)
+            nb_plus, nb_times = compute_nb_operations(sddnnf, include_unused_vars=True)
             print(f"\tSmoothing took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
             del sddnnf
             result_dict["sddnnf_nodecount_plus"] = nb_plus
@@ -207,7 +207,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             start_time = time.time()
             ddnnfp = existential_quantification(ddnnf, var_info.tseitin_vars)
             end_time = time.time()
-            nb_plus, nb_times = _compute_nb_operations(ddnnfp)
+            nb_plus, nb_times = compute_nb_operations(ddnnfp)
             print(f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
             result_dict["ddnnf_exist_nodecount_plus"] = nb_plus
             result_dict["ddnnf_exist_nodecount_mult"] = nb_times
@@ -215,7 +215,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             # smoothing simple existential quantification of tseitin variables
             sddnnfp = smooth_ddnnf(ddnnfp)
             del ddnnfp
-            nb_plus, nb_times = _compute_nb_operations(sddnnfp, include_unused_vars=True)
+            nb_plus, nb_times = compute_nb_operations(sddnnfp, include_unused_vars=True)
             print(f"\tSmoothing after simple existential quantification. + ({nb_plus}) * ({nb_times})")
             del sddnnfp
             result_dict["sddnnf_exist_nodecount_plus"] = nb_plus
@@ -226,7 +226,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             ddnnft = existential_quantification_tseitin(ddnnf, var_info.tseitin_vars)
             del ddnnf
             end_time = time.time()
-            nb_plus, nb_times = _compute_nb_operations(ddnnft)
+            nb_plus, nb_times = compute_nb_operations(ddnnft)
             print(f"\tExistential quantification witth Tseitin took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
             result_dict["ddnnf_tseitin_nodecount_plus"] = nb_plus
             result_dict["ddnnf_tseitin_nodecount_mult"] = nb_times
@@ -234,7 +234,7 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
             # smooth tseitin ddnnf
             sddnnft = smooth_ddnnf(ddnnft)
             del ddnnft
-            nb_plus, nb_times = _compute_nb_operations(sddnnft, include_unused_vars=True)
+            nb_plus, nb_times = compute_nb_operations(sddnnft, include_unused_vars=True)
             del sddnnft
             print(f"\tSmooth after Tseitin. + ({nb_plus}) * ({nb_times})")
             result_dict["sddnnf_tseitin_nodecount_plus"] = nb_plus

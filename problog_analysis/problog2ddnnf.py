@@ -13,10 +13,11 @@ def problog_file_to_ddnnf(filename, timeout):
     return problog_model_to_ddnnf(model, timeout)
 
 
-def problog_model_to_ddnnf(model, timeout) -> (DDNNF, int, VariableSetInfo):
+def problog_model_to_ddnnf(model, timeout, add_query=True) -> (DDNNF, int, VariableSetInfo):
     """
     :param model: ProbLog model containing one query, and no evidence.
     :param timeout:
+    :oaram add_query: Whether to add the query as constraint.
     Relevant exceptions are subprocess.CalledProcessError, subprocess.TimeoutExpired, MemoryError
     :return: The DDNNF, compilation time, and Variable info.
     """
@@ -30,16 +31,17 @@ def problog_model_to_ddnnf(model, timeout) -> (DDNNF, int, VariableSetInfo):
     # print_lf_compact(gp)
     gp = LogicDAG.createFrom(gp)
     # print_lf_compact(gp)
-    cnf, var_info = logicdag_to_cnf(gp)
+    cnf, var_info = logicdag_to_cnf(gp, add_query=add_query)
 #    print_cnf(cnf)
 #    print(var_info)
     ddnnf, compile_time = cnf_to_ddnnf(cnf, timeout=timeout)
     return ddnnf, compile_time, var_info
 
 
-def logicdag_to_cnf(dag: LogicDAG) -> (CNF, VariableSetInfo):
+def logicdag_to_cnf(dag: LogicDAG, add_query=True) -> (CNF, VariableSetInfo):
     """Transform an acyclic propositional program to a CNF using Clark's completion.
 
+    :param add_query:
     :param dag: acyclic program to transform
     :return: the cnf, tseitin introduced variables
     """
@@ -78,13 +80,17 @@ def logicdag_to_cnf(dag: LogicDAG) -> (CNF, VariableSetInfo):
         for clause in c.as_clauses():
             cnf.add_clause(clause)
 
-    # add query as constraint
-    query_node = [node_idx for (query_name, node_idx) in dag.queries()]
-    assert len(query_node) == 1
-    query_node = query_node[0]
-    cnf.add_clause([query_node])
+    # remove query and evidence from Tseitin vars
+    # add query and evidence as constraint if add_query is True
+    query_nodes = [node_idx for (query_name, node_idx) in dag.queries()]
+    evidence_nodes = [node_idx for (query_name, node_idx) in dag.evidence()]
+    unit_nodes = query_nodes + evidence_nodes
+    tseitin_vars = set(tseitin_vars)
+    tseitin_vars.difference_update({abs(x) for x in unit_nodes})
+    tseitin_vars = list(tseitin_vars)
+    if add_query:
+        for unit_node in unit_nodes:
+            cnf.add_clause([unit_node])
 
-    # remove query from Tseitin vars
-    tseitin_vars.remove(query_node)
     return cnf, VariableSetInfo(node2name, tseitin_vars)
 
