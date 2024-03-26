@@ -9,6 +9,9 @@ from core.ddnnf import DDNNF
 
 
 def cnf_to_ddnnf(cnf: CNF, k="D4", timeout=600) -> (DDNNF, int):
+    """ Returns ddnnf and compile time
+    Relevant exceptions: subprocess.CalledProcessError, subprocess.TimeoutExpired and MemoryError.
+    """
     if k == "dsharp":
         return _compile_with_dsharp(cnf, smooth=True)
     else:

@@ -8,8 +8,8 @@ from core.ddnnf_extra import compress_ddnnf, smooth_ddnnf, existential_quantific
 
 
 def execute_experiment(instance_filepath, timeout=600):
-    MAX_VMEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
-    resource.setrlimit(resource.RLIMIT_AS, (MAX_VMEMORY, resource.RLIM_INFINITY))
+    # MAX_VMEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
+    # resource.setrlimit(resource.RLIMIT_AS, (MAX_VMEMORY, resource.RLIM_INFINITY))
 
     #   get_cnf_info
     cnf = read_cnf(instance_filepath)
@@ -19,6 +19,7 @@ def execute_experiment(instance_filepath, timeout=600):
 
     #   extract varinfo from instance
     var_info = _get_varinfo(cnf)
+    print(f"number of tseitin vars={len(var_info.tseitin_vars)}")
     del cnf
 
     #   compile instance to ddnnf
@@ -44,13 +45,10 @@ def execute_experiment(instance_filepath, timeout=600):
         # simple existential quantification of tseitin variables
         start_time = time.time()
         ddnnfp = existential_quantification(ddnnf, var_info.tseitin_vars)
-        # print(f"before {len(ddnnfp)} and {len(ddnnfp.unused_vars)}")
-        # ddnnfp = compress_ddnnf(ddnnfp)
-        # print(f"after {len(ddnnfp)} and {len(ddnnfp.unused_vars)}")
         end_time = time.time()
         nb_plus, nb_times = _compute_nb_operations(ddnnfp)
         print(
-            f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
+            f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times}) with unused vars {len(ddnnfp.unused_vars)}")
 
         # smoothing simple existential quantification of tseitin variables
         sddnnfp = smooth_ddnnf(ddnnfp)
@@ -62,6 +60,7 @@ def execute_experiment(instance_filepath, timeout=600):
         # tseitin-artifact removal + existential quantification
         start_time = time.time()
         ddnnft = existential_quantification_tseitin(ddnnf, var_info.tseitin_vars)
+        print(f"{len(ddnnft)} and {len(ddnnft.unused_vars)} unused vars")
         del ddnnf
         end_time = time.time()
         nb_plus, nb_times = _compute_nb_operations(ddnnft)
@@ -78,6 +77,7 @@ def execute_experiment(instance_filepath, timeout=600):
 
 if __name__ == "__main__":
     # cnf_instances_csv = "results/test-cnfs.csv"
-    cnf_instance_path = "../sources/cnf2tseitin/cnf/MC2023_track1-mc_public/mc2023_track1_037.cnf"
+    #cnf_instance_path = "../sources/cnf2tseitin/cnf/MC2022_track1-mc_public/mc2022_track1_121.cnf"
+    cnf_instance_path = "../sources/cnf2tseitin/cnf/MC2023_track1-mc-private/mc2023_track1_066.cnf"
     execute_experiment(cnf_instance_path, timeout=600)
 

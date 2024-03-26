@@ -9,7 +9,7 @@ from cnf_analysis.cnf2tseitin import determine_tseitin_from_cnf
 from sources.cnf2tseitin.config import model_counting_folders
 
 
-def analyse_cnf_folder(output_filepath="./analysis.csv"):
+def analyse_cnf_folder(output_filepath):
     folder_dirs = model_counting_folders.copy()
 
     with open(output_filepath, "w") as f:

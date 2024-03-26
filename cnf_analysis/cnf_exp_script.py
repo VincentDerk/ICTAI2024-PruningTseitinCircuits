@@ -261,7 +261,6 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
 
 
 if __name__ == "__main__":
-    # TODO: test with a csv pointing to a small test d-DNNF, where we know the expected results
     # cnf_instances_csv = "results/test-cnfs.csv"
     cnf_instances_csv = "results/tseitin-var-counts-mcc-filtered.csv"
     result_csv = "results/results_cnf_exp.csv"
