@@ -104,6 +104,9 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
                 nnf_graph_d4[_curr_node_idx] = list()
             nnf_graph_d4[_curr_node_idx].append(child_node_idx)
 
+        # TODO: 30/03/ if node_types ends with 't', then nnf_graph_d4 will not be of correct size, missing entry for that true/
+        # Also for 'f'?
+
         for line in f.readlines():
             # print(line)
             line = line[:-2].strip().split()
@@ -159,6 +162,7 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
                 assert len(node_info) == 2
                 child1, implied_literals1 = node_info[0]
                 child2, implied_literals2 = node_info[1]
+                # TODO: if child1 (child2) is True, then we do must not explore it.
                 mapped_child1 = _recursive_complete_ddnnf(child1)
                 mapped_child2 = _recursive_complete_ddnnf(child2)
 
