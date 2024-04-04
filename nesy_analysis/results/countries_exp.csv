@@ -1,0 +1,6 @@
+filepath,var_count,tseitin_var_count,compile_time,ddnnf_nodecount_plus,ddnnf_nodecount_mult,sddnnf_nodecount_plus,sddnnf_nodecount_mult,ddnnf_exist_nodecount_plus,ddnnf_exist_nodecount_mult,sddnnf_exist_nodecount_plus,sddnnf_exist_nodecount_mult,ddnnf_tseitin_nodecount_plus,ddnnf_tseitin_nodecount_mult,sddnnf_tseitin_nodecount_plus,sddnnf_tseitin_nodecount_mult
+../sources/dnf_countries/proofs_countries_s3.pkl,0,294,0.000,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO
+../sources/dnf_countries/proofs_countries_s2.pkl,221,136,570.102,3709790,22558617,3709865,24121993,3709790,13118973,3709865,14682349,3360690,9729812,3360774,12217670
+../sources/dnf_countries/proofs_countries_s1.pkl,234,110,890.458,7298339,75967008,7298455,90448953,7298339,54862942,7298455,69344887,6884443,29837143,6884565,49227982
+../sources/dnf_countries/proofs_countries_s3_smaller.pkl,0,180,0.000,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO
+../sources/dnf_countries/proofs_countries_s3_smaller2.pkl,140,100,358.097,8474436,70836571,8474468,76508574,8474436,25233769,8474468,30905772,4823792,11890881,4823831,18065649

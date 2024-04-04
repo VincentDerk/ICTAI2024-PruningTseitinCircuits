@@ -1,0 +1,4 @@
+filepath,var_count,tseitin_var_count,compile_time,ddnnf_nodecount_plus,ddnnf_nodecount_mult,sddnnf_nodecount_plus,sddnnf_nodecount_mult,ddnnf_exist_nodecount_plus,ddnnf_exist_nodecount_mult,sddnnf_exist_nodecount_plus,sddnnf_exist_nodecount_mult,ddnnf_tseitin_nodecount_plus,ddnnf_tseitin_nodecount_mult,sddnnf_tseitin_nodecount_plus,sddnnf_tseitin_nodecount_mult
+../sources/nesy/poker.pl,286,260,0.895,241,8487,241,8487,241,1883,241,1883,241,1883,241,1883
+../sources/nesy/addition_4_1.pl,11144,1100,18.531,13004,630233,13004,630233,13004,304533,13004,304533,13004,304533,13004,304533
+../sources/nesy/poker.pl,286,260,1.098,369,18765,369,18765,369,3853,369,3853,369,3853,369,3853

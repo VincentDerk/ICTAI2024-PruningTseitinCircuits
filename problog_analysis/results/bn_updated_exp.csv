@@ -1,0 +1,7 @@
+filepath,var_count,tseitin_var_count,compile_time,ddnnf_nodecount_plus,ddnnf_nodecount_mult,sddnnf_nodecount_plus,sddnnf_nodecount_mult,ddnnf_exist_nodecount_plus,ddnnf_exist_nodecount_mult,sddnnf_exist_nodecount_plus,sddnnf_exist_nodecount_mult,ddnnf_tseitin_nodecount_plus,ddnnf_tseitin_nodecount_mult,sddnnf_tseitin_nodecount_plus,sddnnf_tseitin_nodecount_mult
+../sources/problog_bn_query_updated/pigs.net.pl,296,158,0.639,237,4541,244,4734,237,1532,244,1725,237,1532,244,1725
+../sources/problog_bn_query_updated/munin.net.pl,669,382,5.741,2430,89750,2460,93555,2430,23653,2460,27458,2417,23444,2447,26080
+../sources/problog_bn_query_updated/pathfinder.net.pl,1353,953,2.284,652,58981,690,60199,652,8215,690,9433,645,8206,683,9429
+../sources/problog_bn_query_updated/child.net.pl,285,149,0.789,399,9587,410,10079,399,2926,410,3418,399,2926,410,3418
+../sources/problog_bn_query_updated/andes.net.pl,1080,723,346.720,85638,1725424,85972,2183966,85638,261028,85972,719570,74243,172861,74593,668970
+../sources/problog_bn_query_updated/insurance.net.pl,1479,799,85.983,22380,1076995,22438,1131860,22380,302637,22438,357502,22368,301567,22426,355141
