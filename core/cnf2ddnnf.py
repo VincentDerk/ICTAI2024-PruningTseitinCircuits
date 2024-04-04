@@ -26,7 +26,7 @@ def _compile_with_d4(cnf: CNF, timeout):
     os.close(fd1)
     os.close(fd2)
     # cmd = f"ulimit -S -m $((3*1024*1024)) && ../bin/d4_static {cnf_file} -dDNNF -out={nnf_file}"
-    cmd = ["../bin/d4_static", cnf_file, "-dDNNF", f"-out={nnf_file}"]
+    cmd = ["../bin/d4_static", cnf_file, "-dDNNF", "-rnd-seed=458834", f"-out={nnf_file}"]
 
     def _set_mem_resources():
         MAX_VIRTUAL_MEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
