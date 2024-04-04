@@ -1,0 +1,1 @@
+We removed gh_1_prob.lp.cnf because the CNF was empty.
