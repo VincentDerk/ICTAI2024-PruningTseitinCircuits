@@ -1,6 +1,8 @@
 from typing import List
 
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 class _ResultObj:
 
@@ -57,37 +59,51 @@ def read_from_file(csv_result_filepath: str):
     print(f"nb_timeouts={nb_timeouts}; nb_mems={nb_mems}")
     return result_objs
 
-def visualize_results(img_filepath, result_objs: List[_ResultObj]):
-    assert len(result_objs) == 99
-    x = list(range(2, 101))
-    y_ddnnf = [r.ddnnf_nodecount for r in result_objs]
-    y_ddnnfp = [r.ddnnfp_nodecount for r in result_objs]
-    y_ddnnft = [r.ddnnft_nodecount for r in result_objs]
 
-    fig, ax = plt.subplots() # nrows=1, ncols=1, figsize=figsize)
-    ax.plot(x, y_ddnnf, color="red", zorder=10,
-            label="d-DNNF", marker="o", linewidth=2)
-    ax.plot(x, y_ddnnfp, color="blue", zorder=10,
-            label="d-DNNF+p", marker="^", linewidth=2)
-    ax.plot(x, y_ddnnft, color="green", zorder=10,
-            label="d-DNNF+t", linewidth=2)
-    ax.set_xlim([0, 100])
-    ax.set_ylim(bottom=0)
-    ax.set_xlabel("number of parents")
-    ax.set_ylabel("number of nodes")
-    ax.grid(axis="y", color='black', ls=':', lw=1, zorder=1)
-    ax.legend(loc='upper left')
+def visualize_results(img_filepath, result_objs: List[_ResultObj]):
+    data_x = np.array(range(len(result_objs)))
+    data_yp = [r.ddnnfp_nodecount / r.ddnnf_nodecount for r in result_objs]
+    data_yt = [r.ddnnft_nodecount / r.ddnnf_nodecount for r in result_objs]
+
+    def _extract_name(name):
+        return name.split("/")[-1].replace(".pl", "")
+    tick_labels = [_extract_name(r.instance_name) for r in result_objs]
+    fig, ax = plt.subplots()  # nrows=1, ncols=1, figsize=figsize)
+    plt.bar(data_x - 0.2, height=data_yp, width=0.4, color='blue', label="d-DNNF+p", hatch="//")
+    plt.bar(data_x + 0.2,  height=data_yt, width=0.4, color='green', label="d-DNNF+t")
+    plt.xticks(data_x, tick_labels, y=-0.05)
+
+    for i, label in enumerate(ax.get_xticklabels()):
+        if i % 2:
+            label.set_va('top')
+        else:
+            pass
+            label.set_va('bottom')
+
+    ax.set_xlabel("BN instance")
+    ax.set_ylabel("nodes remaining (%)")
+    ax.legend()
+
+    # ax.set_xlim([0, maxval])
+    # ax.set_ylim([0, maxval])
+
+    #ax.grid(True, color='black', ls=':', lw=1, zorder=1)
 
     # setting frame thickness
-    for i in ax.spines.values():
-        i.set_linewidth(1)
+    # for i in six.itervalues(ax.spines):
+    #     i.set_linewidth(1)
 
     plt.savefig(img_filepath, bbox_inches='tight')
+    # Show the plot
     # plt.show()
 
 
-
 if __name__ == "__main__":
-    result_csv = "results/noisy_or.csv"
+    result_csv = "./results/bn_no_tseitin_exp.csv"
     results = read_from_file(result_csv)
-    visualize_results("./results/noisy_or.pdf", results)
+    for result in results:
+        rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
+        rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
+        print(f"{result.instance_name}    \t\t{result.ddnnf_nodecount}\t{result.ddnnfp_nodecount} ({rel_compression:.2f})"
+              f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
+    visualize_results("./results/bn_no_tseitin_exp.pdf", results)

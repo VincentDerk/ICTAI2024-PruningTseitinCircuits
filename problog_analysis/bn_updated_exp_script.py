@@ -1,25 +1,35 @@
-import os
+#! /usr/bin/env python
+#
+# import os
+import resource
 import subprocess
 import sys
 import time
+import os
 
-from problog.program import PrologString
+# To use ../core/ imports, we are adding the parent folder to sys.path
+script_dir = os.path.dirname(os.path.realpath(__file__))
+parent_dir = os.path.dirname(script_dir)
+sys.path.append(parent_dir)
 
-from cnf_analysis.cnf_exp_script import compute_nb_operations
+from core.cnf import CNF
+from core.cnf2ddnnf import cnf_to_ddnnf
 from core.ddnnf import DDNNF
 from core.ddnnf_extra import compress_ddnnf, smooth_ddnnf, existential_quantification, \
-    existential_quantification_tseitin
-from core.varinfo import VariableSetInfo
-from problog_analysis.problog2ddnnf import problog_model_to_ddnnf
+    existential_quantification_tseitin, compute_nb_operations
+from problog_analysis.problog2ddnnf import logicdag_to_cnf
+
+from problog.formula import LogicDAG
+from problog.program import PrologFile
+from problog.engine import DefaultEngine
 
 
-def _compile_instance(model: PrologString, timeout) -> (DDNNF, int, VariableSetInfo, str):
+def _compile_instance(cnf: CNF, timeout) -> (DDNNF, int, str):
     """ returns d-DNNF, compile time, var_info and status """
     ddnnf = None
     compile_time = 0
-    var_info = None
     try:
-        ddnnf, compile_time, var_info = problog_model_to_ddnnf(model, timeout=timeout)
+        ddnnf, compile_time = cnf_to_ddnnf(cnf, timeout=timeout)
         status = "success"
     except subprocess.CalledProcessError as err:
         print(err, file=sys.stderr)
@@ -30,13 +40,12 @@ def _compile_instance(model: PrologString, timeout) -> (DDNNF, int, VariableSetI
     except MemoryError as err:
         print(f"Memory error. Skipped it.")
         status = "memory_error"
-    return ddnnf, compile_time, var_info, status
+    return ddnnf, compile_time, status
 
 
 def _generate_result_csv(result_csv_path):
     if not os.path.exists(result_csv_path):
         os.makedirs(os.path.dirname(result_csv_path), exist_ok=True)
-
         # instance name + information
         # compile time
         # ddnnf node count (after smoothing)
@@ -44,7 +53,7 @@ def _generate_result_csv(result_csv_path):
         # ddnnf node count after removing tseitin artifacts (+ adding smoothing nodes)
         # NOTE: node count includes atoms. To exclude these, subtract var_count from it
         with open(result_csv_path, "w+") as f:
-            f.write("instance_name,var_count,tseitin_var_count,compile_time,"
+            f.write("filepath,var_count,tseitin_var_count,compile_time,"
                     "ddnnf_nodecount_plus,ddnnf_nodecount_mult,"
                     "sddnnf_nodecount_plus,sddnnf_nodecount_mult,"
                     "ddnnf_exist_nodecount_plus,ddnnf_exist_nodecount_mult,"
@@ -54,7 +63,7 @@ def _generate_result_csv(result_csv_path):
 
 
 def _write_to_result_csv(result_csv_path: str, result: dict):
-    instance_name = result["instance_name"]
+    instance_name = result["filepath"]
     var_count = result["var_count"]
     tseitin_var_count = result["tseitin_var_count"]
     compile_time = result["compile_time"]
@@ -80,26 +89,33 @@ def _write_to_result_csv(result_csv_path: str, result: dict):
                 f"{sddnnf_tseitin_nodecount_plus},{sddnnf_tseitin_nodecount_mult}\n")
 
 
-def _generate_noisy_or_str_instance(nb_parents):
-    noisy_or_str = ""
-    for i in range(nb_parents):
-        noisy_or_str += f"0.5::a({i}). "
-    noisy_or_str += ("0.25::aux(X).\n"
-                     "x :- a(X), aux(X).\n"
-                     "query(x).")
-    return noisy_or_str
+def _process(result_csv_path, instance_filepath):
+    model = PrologFile(instance_filepath)
+    engine = DefaultEngine(label_all=True)
+    db = engine.prepare(model)
+    gp = engine.ground_all(db)
+    print("Grounded")
+    del engine
+    del model
+    gp = LogicDAG.createFrom(gp)  # type: LogicDAG
+    print(f"size of LogicDAG {len(gp)} with {gp.atomcount} atoms")
+    cnf, var_info = logicdag_to_cnf(gp, add_query=True)
+    del gp
+    print(f"\tCNF of vars {cnf.var_count} with {cnf.clause_count()} clauses and {len(var_info.tseitin_vars)} ({(len(var_info.tseitin_vars) / cnf.var_count * 100):.1f}%) Tseitin variables.")
 
+    if cnf.var_count < 100 or len(var_info.tseitin_vars) < 10:
+        print(f"\tSkipped instance {instance_filepath}")
+        return
 
-def _execute_noisy_or(result_csv_path, model, instance_name):
     result_dict = dict()
-    result_dict["instance_name"] = instance_name
+    result_dict["filepath"] = instance_filepath
 
-    print(f"Compiling instance {instance_name}")
-    ddnnf, compile_time, var_info, status = _compile_instance(model, timeout=600)
+    print(f"\tCompiling instance {instance_filepath}")
+    ddnnf, compile_time, status = _compile_instance(cnf, timeout=600)
     result_dict["compile_time"] = compile_time
     result_dict["var_count"] = ddnnf.var_count if ddnnf is not None else 0
     result_dict["tseitin_var_count"] = len(var_info.tseitin_vars) if var_info is not None else 0
-    print(f"\tCompiled {instance_name} with {status} and compile time {compile_time:.3f}s.")
+    print(f"\tCompiled {instance_filepath} with {status} and compile time {compile_time:.3f}s.")
 
     if ddnnf is not None and status == "success":
         # compress d-DNNF
@@ -177,19 +193,28 @@ def _execute_noisy_or(result_csv_path, model, instance_name):
 
     if status == "success" or status == "timeout" or status == "memory_error":
         _write_to_result_csv(result_csv_path, result_dict)
-    # else: we printed the error and should look into this instance.
 
 
 def execute_experiment(result_csv_path):
     _generate_result_csv(result_csv_path)
+    bn_no_tseitin_folder = "../sources/problog_bn_query_updated"
+    for filename in os.listdir(bn_no_tseitin_folder):
+        instance_filepath = os.path.join(bn_no_tseitin_folder, filename)
+        print(f"Processing {instance_filepath}")
+        try:
+            _process(result_csv_path, instance_filepath)
+        except MemoryError as err:
+            print(f"Memory error on {instance_filepath}. Skipped it.")
 
-    for i in range(2, 101):
-        model = PrologString(_generate_noisy_or_str_instance(nb_parents=i))
-        instance_name = f"noisy_or_{i}"
-        _execute_noisy_or(result_csv_path, model, instance_name)
+
+def temp_t(result_csv_path):
+    _process(result_csv_path, "../sources/problog_bn_query_updated/barley.net.pl")
 
 
 if __name__ == "__main__":
-    result_path = "./results/noisy_or.csv"
+    result_path = "./results/bn_updated_exp.csv"
+    MAX_VMEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
+    resource.setrlimit(resource.RLIMIT_AS, (MAX_VMEMORY, resource.RLIM_INFINITY))
     execute_experiment(result_path)
+    # temp_t(result_path)
 

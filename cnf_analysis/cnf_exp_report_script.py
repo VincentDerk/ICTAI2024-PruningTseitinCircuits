@@ -142,7 +142,6 @@ def _scatterplot_pt(result_objs: List[_ResultObj]):
     # for i in six.itervalues(ax.spines):
     #     i.set_linewidth(1)
 
-    # plt.savefig(self.save_to, bbox_inches='tight', transparent=self.transparent)
     # Show the plot
     plt.show()
 

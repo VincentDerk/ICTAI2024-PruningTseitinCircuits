@@ -354,5 +354,28 @@ def compress_ddnnf(ddnnf: DDNNF) -> DDNNF:
     return new_ddnnf
 
 
+def compute_nb_operations(ddnnf: DDNNF, include_unused_vars=False) -> (int, int):
+    """
+    Compute the number of addition and multiplication operations within the given ddnnf.
+    This method uses a bottom-up traversal.
+    :param ddnnf: The d-DNNF in which to compute the number of operations.
+    :param include_unused_vars: If true, we treat every unused var as a smoothing operation.
+    :return: The number of addition and multiplication operations (as a tuple) in ddnnf.
+        A non-binary operation is reduced to a binary one, e.g., +(a,b,c) counts as two +.
+    """
+    nb_plus = 0
+    nb_times = 0
+    traversor = DDNNFTraverserBottomUp(ddnnf)
+    for node_idx, node in traversor.next_node():
+        if node.node_type == "disj":
+            nb_plus += len(node.node_field) - 1
+        elif node.node_type == "conj":
+            nb_times += len(node.node_field) - 1
+    if include_unused_vars:
+        nb_plus += len(ddnnf.unused_vars)
+        nb_times += len(ddnnf.unused_vars)  # n-1 for unused vars +1 product with root node.
+    return nb_plus, nb_times
+
+
 
 
