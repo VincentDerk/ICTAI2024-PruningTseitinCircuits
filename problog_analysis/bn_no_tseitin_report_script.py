@@ -62,8 +62,8 @@ def read_from_file(csv_result_filepath: str):
 
 def visualize_results(img_filepath, result_objs: List[_ResultObj]):
     data_x = np.array(range(len(result_objs)))
-    data_yp = [r.ddnnfp_nodecount / r.ddnnf_nodecount for r in result_objs]
-    data_yt = [r.ddnnft_nodecount / r.ddnnf_nodecount for r in result_objs]
+    data_yp = [r.ddnnfp_nodecount / r.ddnnf_nodecount *100 for r in result_objs]
+    data_yt = [r.ddnnft_nodecount / r.ddnnf_nodecount *100 for r in result_objs]
 
     def _extract_name(name):
         return name.split("/")[-1].replace(".pl", "")
