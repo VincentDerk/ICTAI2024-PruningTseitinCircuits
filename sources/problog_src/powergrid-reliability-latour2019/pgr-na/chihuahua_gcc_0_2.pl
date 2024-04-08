@@ -51,9 +51,9 @@ connection(X, Y) :- power_line(X, Y).
 connection(X, Y) :- connection(X, Z), power_line(Z, Y).
 connected(X) :- station(Y), connection(X, Y).
 
-query(connected('14811')).
-query(connected('13643')).
-query(connected('4570')).
+% query(connected('14811')).
+% query(connected('13643')).
+% query(connected('4570')).
 query(connected('13882')).
 query(connected('13807')).
 query(connected('16177')).

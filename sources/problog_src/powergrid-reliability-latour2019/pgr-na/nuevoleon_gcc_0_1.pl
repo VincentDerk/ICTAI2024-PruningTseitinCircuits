@@ -53,10 +53,10 @@ connected(X) :- station(Y), connection(X, Y).
 query(connected('4610')).
 query(connected('4612')).
 query(connected('4615')).
-query(connected('14482')).
-query(connected('14491')).
-query(connected('14507')).
-query(connected('6957')).
-query(connected('4609')).
-query(connected('14453')).
-query(connected('4608')).
+% query(connected('14482')).
+% query(connected('14491')).
+% query(connected('14507')).
+% query(connected('6957')).
+% query(connected('4609')).
+% query(connected('14453')).
+% query(connected('4608')).

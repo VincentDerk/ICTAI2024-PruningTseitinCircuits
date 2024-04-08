@@ -88,20 +88,20 @@ connection(X, Y) :- power_line(X, Y).
 connection(X, Y) :- connection(X, Z), power_line(Z, Y).
 connected(X) :- station(Y), connection(X, Y).
 
-query(connected('7223')).
-query(connected('7213')).
-query(connected('48')).
-query(connected('589')).
-query(connected('7215')).
-query(connected('7219')).
-query(connected('7220')).
-query(connected('13568')).
+% query(connected('7223')).
+% query(connected('7213')).
+% query(connected('48')).
+% query(connected('589')).
+% query(connected('7215')).
+% query(connected('7219')).
+% query(connected('7220')).
+% query(connected('13568')).
 query(connected('14257')).
 query(connected('7364')).
 query(connected('7740')).
 query(connected('13567')).
-query(connected('7747')).
-query(connected('171')).
-query(connected('13566')).
-query(connected('7214')).
-query(connected('1845')).
+% query(connected('7747')).
+% query(connected('171')).
+% query(connected('13566')).
+% query(connected('7214')).
+% query(connected('1845')).

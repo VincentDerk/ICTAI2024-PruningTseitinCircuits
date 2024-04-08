@@ -66,21 +66,40 @@ def _print_latex_table(result_objs):
     return None
 
 
-def _print_info_on_p(result_objs: List[_ResultObj]):
+def _print_info(result_objs: List[_ResultObj]):
     """ compare existential quantification + simple propagation versus tseitin-artifact removal. """
-    print(f"Number of result objects: {len(result_objs)}")
-    for inst in result_objs:
-        assert inst.ddnnft_nodecount <= inst.ddnnfp_nodecount
-        # assert inst.sddnnft_nodecount <= inst.sddnnfp_nodecount
-        # This assert can be violated: smoothing after tseitin can yield larger circuit than
-        # smoothing after existenial, due to suboptimal smoothing configuration.
-        # if inst.sddnnft_nodecount > inst.sddnnfp_nodecount:
-        #     print(f"{inst.cnf_path} has the problem. {inst.sddnnft_nodecount} > {inst.sddnnfp_nodecount}")
+    data_d = np.array([r.ddnnf_nodecount for r in result_objs])
+    data_p = np.array([r.ddnnfp_nodecount for r in result_objs])
+    data_t = np.array([r.ddnnft_nodecount for r in result_objs])
+    nb_inst = len(data_d)
 
-        if inst.ddnnft_nodecount < inst.ddnnfp_nodecount:
-            relative_removal = (inst.ddnnfp_nodecount - inst.ddnnft_nodecount) / inst.ddnnfp_nodecount
-            print(f"ddnnft < ddnnfp ({inst.ddnnft_nodecount} < {inst.ddnnfp_nodecount}) ({relative_removal:.3f}) for {inst.cnf_path}")
-    return None
+    print("-- d-DNNF versus d-DNNF+t")
+    num_improvements = np.sum(data_t < data_d)
+    num_same = np.sum(data_t == data_d)
+    print(f"Number of improvements: {num_improvements}/{nb_inst}")
+    print(f"Number of same: {num_same}/{nb_inst}")
+    print("Overall:")
+    rel_pruned = (1 - data_t / data_d) * 100  # avg number of nodes removed
+    print(f"\tAvg: {np.average(rel_pruned):.1f}% nodes removed.")
+    print(f"\tMedian: {np.median(rel_pruned):.1f}% nodes removed.")
+    print(f"\tStd: {np.std(rel_pruned):.1f}% nodes removed.")
+
+    print("\n-- d-DNNF+p versus d-DNNF+t")
+    num_improvements = np.sum(data_t < data_p)
+    num_same = np.sum(data_t == data_p)
+    print(f"Number of improvements: {num_improvements}/{nb_inst}")
+    print(f"Number of same: {num_same}/{nb_inst}")
+    print("Overall:")
+    rel_pruned = (1 - data_t / data_p) * 100  # avg number of nodes removed
+    print(f"\tAvg: {np.average(rel_pruned):.1f}% nodes removed.")
+    print(f"\tMedian: {np.median(rel_pruned):.1f}% nodes removed.")
+    print(f"\tStd: {np.std(rel_pruned):.1f}% nodes removed.")
+    print("For those improved:")
+    rel_pruned_improved_only = rel_pruned[rel_pruned > 0]
+    print(f"\tAvg: {np.average(rel_pruned_improved_only):.1f}% nodes removed.")
+    print(f"\tMedian: {np.median(rel_pruned_improved_only):.1f}% nodes removed.")
+    print(f"\tStd: {np.std(rel_pruned_improved_only):.1f}% nodes removed.")
+
 
 
 def _scatterplot_pt(result_objs: List[_ResultObj]):
@@ -95,7 +114,10 @@ def _scatterplot_pt(result_objs: List[_ResultObj]):
     maxval = max(max(data_x), max(data_y))
     logscale = True
     area_parameter = 10
-    fig, ax = plt.subplots() # nrows=1, ncols=1, figsize=figsize)
+    plt.style.use("../tex.mplstyle")
+    fig, ax = plt.subplots()  # nrows=1, ncols=1, figsize=figsize)
+    fig.set_figwidth(3.31)
+    fig.set_figheight(2.04)
 
     step = int(maxval / 10)
     x = np.arange(0, maxval + step, step=step)
@@ -149,10 +171,10 @@ def _scatterplot_pt(result_objs: List[_ResultObj]):
 def _scatter_reg_vs_tseitin(result_objs: List[_ResultObj], img_filepath):
     data_x = [r.ddnnf_nodecount for r in result_objs]
     data_x = np.array(data_x)
-    xlabel = "|d-DNNF|"
+    xlabel = "number of nodes in d-DNNF"
     data_y = [r.ddnnft_nodecount / r.ddnnf_nodecount * 100 for r in result_objs]
     data_y = np.array(data_y)
-    ylabel = "Nodes remaining after tseitin removal (%)"
+    ylabel = "nodes remaining in d-DNNF+t (\%)"
 
     # results
     avg = np.average(100 - data_y)  # avg % nodes removed
@@ -162,12 +184,14 @@ def _scatter_reg_vs_tseitin(result_objs: List[_ResultObj], img_filepath):
     print(f"Number of nodes removed (%). Average={avg:.3f}%\tMedian={median:.3f}%\tstd={std:.3f}%)")
     print(f"nb of improved instances: {nb_improved}/{len(data_y)}")
 
-
     # scatter
     logscale = True
-    fig, ax = plt.subplots() # nrows=1, ncols=1, figsize=figsize)
+    plt.style.use("../tex.mplstyle")
+    fig, ax = plt.subplots()  # nrows=1, ncols=1, figsize=figsize)
+    fig.set_figwidth(3.31)
+    fig.set_figheight(3)
     ax.set_ylim([0, 100])
-    ax.scatter(data_x, data_y, color="red", alpha=0.4, zorder=5)
+    ax.scatter(data_x, data_y, color="red", alpha=0.4, zorder=5, marker=".")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True, color='black', ls=':', lw=1, zorder=1)
@@ -193,10 +217,10 @@ def _scatter_reg_vs_tseitin(result_objs: List[_ResultObj], img_filepath):
 def _scatter_reg_vs_tseitin_smooth(result_objs: List[_ResultObj], img_filepath):
     data_x = [r.sddnnf_nodecount for r in result_objs]
     data_x = np.array(data_x)
-    xlabel = "|sd-DNNF|"
+    xlabel = "number of nodes in sd-DNNF"
     data_y = [r.sddnnft_nodecount / r.sddnnf_nodecount * 100 for r in result_objs]
     data_y = np.array(data_y)
-    ylabel = "Nodes remaining after tseitin removal (%)"
+    ylabel = "nodes remaining in sd-DNNF+t (\%)"
 
     # results
     nb_improved = np.sum(data_y < 100)
@@ -221,9 +245,12 @@ def _scatter_reg_vs_tseitin_smooth(result_objs: List[_ResultObj], img_filepath):
 
     # scatter
     logscale = True
-    fig, ax = plt.subplots() # nrows=1, ncols=1, figsize=figsize)
+    plt.style.use("../tex.mplstyle")
+    fig, ax = plt.subplots()  # nrows=1, ncols=1, figsize=figsize)
+    fig.set_figwidth(3.31)
+    fig.set_figheight(3)
     ax.set_ylim([0, 100])
-    ax.scatter(data_x, data_y, color="red", alpha=0.4, zorder=5)
+    ax.scatter(data_x, data_y, color="red", alpha=0.4, zorder=5, marker=".")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True, color='black', ls=':', lw=1, zorder=1)
@@ -249,10 +276,10 @@ def _scatter_reg_vs_tseitin_smooth(result_objs: List[_ResultObj], img_filepath):
 def _scatter_prop_vs_tseitin(result_objs: List[_ResultObj], img_filepath):
     data_x = [r.ddnnfp_nodecount for r in result_objs]
     data_x = np.array(data_x)
-    xlabel = "|d-DNNF| after simple existential"
+    xlabel = "number of nodes in d-DNNF+p"
     data_y = [r.ddnnft_nodecount / r.ddnnfp_nodecount * 100 for r in result_objs]
     data_y = np.array(data_y)
-    ylabel = "Nodes remaining after tseitin removal (%)"
+    ylabel = "nodes remaining in d-DNNF+t (\%)"
 
     # results
     nb_improved = np.sum(data_y < 100)
@@ -277,15 +304,18 @@ def _scatter_prop_vs_tseitin(result_objs: List[_ResultObj], img_filepath):
 
     # plot
     logscale = True
-    fig, ax = plt.subplots() # nrows=1, ncols=1, figsize=figsize)
+    plt.style.use("../tex.mplstyle")
+    fig, ax = plt.subplots()  # nrows=1, ncols=1, figsize=figsize)
+    fig.set_figwidth(3.31)
+    fig.set_figheight(3)
 
     # scatter
-    ax.scatter(data_x, data_y, color="red", alpha=0.4, zorder=5)
+    ax.scatter(data_x, data_y, color="red", alpha=0.4, zorder=5, marker=".")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True, color='black', ls=':', lw=1, zorder=1)
     ax.set_xscale('log')
-    ax.set_ylim(bottom=0)
+    ax.set_ylim([0, 100])
 
     # setting ticks font properties
     # ax.set_xticklabels(ax.get_xticks(), self.f_props)
@@ -308,14 +338,16 @@ if __name__ == "__main__":
     result_csv = "results/results_cnf_exp.csv"
     results = read_from_file(result_csv)
     # _print_latex_table(results)
-    # _print_info_on_p(results)
+    _print_info(results)
 
     # comparison classic versus tseitin does not make sense to have regular
     # scatter because only the bottom triangle will be filled.
     print("reg vs tseitin")
     _scatter_reg_vs_tseitin(results, img_filepath="results/scatter_reg_vs_tseitin.pdf")
-    print("reg vs tseitin smooth")
-    _scatter_reg_vs_tseitin_smooth(results, img_filepath="results/scatter_reg_vs_tseitin_smooth.pdf")
+    # print("")
+    # print("reg vs tseitin smooth")
+    # _scatter_reg_vs_tseitin_smooth(results, img_filepath="results/scatter_reg_vs_tseitin_smooth.pdf")
+    print("")
     print("prop vs tseitin")
     _scatter_prop_vs_tseitin(results, img_filepath="results/scatter_prop_vs_tseitin.pdf")
 

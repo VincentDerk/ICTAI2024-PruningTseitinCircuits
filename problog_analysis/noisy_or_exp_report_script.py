@@ -63,24 +63,22 @@ def visualize_results(img_filepath, result_objs: List[_ResultObj]):
     y_ddnnf = [r.ddnnf_nodecount for r in result_objs]
     y_ddnnfp = [r.ddnnfp_nodecount for r in result_objs]
     y_ddnnft = [r.ddnnft_nodecount for r in result_objs]
-
+    plt.style.use("../tex.mplstyle")
     fig, ax = plt.subplots() # nrows=1, ncols=1, figsize=figsize)
+    fig.set_figwidth(3.31)
+    fig.set_figheight(2.04)
     ax.plot(x, y_ddnnf, color="red", zorder=10,
-            label="d-DNNF", marker="o", linewidth=2)
+            label="d-DNNF", linestyle="dotted", linewidth=2)
     ax.plot(x, y_ddnnfp, color="blue", zorder=10,
-            label="d-DNNF+p", marker="^", linewidth=2)
+            label="d-DNNF+p", linestyle="dashed", linewidth=2)
     ax.plot(x, y_ddnnft, color="green", zorder=10,
-            label="d-DNNF+t", linewidth=2)
+            label="d-DNNF+t", marker=".", markersize=5, linewidth=2)
     ax.set_xlim([0, 100])
     ax.set_ylim(bottom=0)
     ax.set_xlabel("number of parents")
     ax.set_ylabel("number of nodes")
     ax.grid(axis="y", color='black', ls=':', lw=1, zorder=1)
     ax.legend(loc='upper left')
-
-    # setting frame thickness
-    for i in ax.spines.values():
-        i.set_linewidth(1)
 
     plt.savefig(img_filepath, bbox_inches='tight')
     # plt.show()

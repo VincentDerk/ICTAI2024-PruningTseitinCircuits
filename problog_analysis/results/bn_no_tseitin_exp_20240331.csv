@@ -1,0 +1,11 @@
+filepath,var_count,tseitin_var_count,compile_time,ddnnf_nodecount_plus,ddnnf_nodecount_mult,sddnnf_nodecount_plus,sddnnf_nodecount_mult,ddnnf_exist_nodecount_plus,ddnnf_exist_nodecount_mult,sddnnf_exist_nodecount_plus,sddnnf_exist_nodecount_mult,ddnnf_tseitin_nodecount_plus,ddnnf_tseitin_nodecount_mult,sddnnf_tseitin_nodecount_plus,sddnnf_tseitin_nodecount_mult
+../sources/problog_bn_query_no_tseitin/alarm.pl,1021,569,2.625,8086,509548,8159,527548,8086,178648,8159,196648,8086,178648,8159,196648
+../sources/problog_bn_query_no_tseitin/barley.pl,0,70815,0.000,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO
+../sources/problog_bn_query_no_tseitin/child.pl,327,172,0.193,566,15444,584,16303,566,4414,584,5273,566,4414,584,5273
+../sources/problog_bn_query_no_tseitin/pathfinder.pl,6459,3775,4.905,2629,344916,2986,379633,2629,78365,2986,113082,2629,78365,2986,113082
+../sources/problog_bn_query_no_tseitin/mildew.pl,0,13365,0.000,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO,TO
+../sources/problog_bn_query_no_tseitin/pigs.pl,296,158,0.200,308,6761,315,7076,308,2247,315,2562,308,2247,315,2562
+../sources/problog_bn_query_no_tseitin/hailfinder.pl,7229,3733,108.373,78991,7074609,78991,7074609,78991,1883100,78991,1883100,78991,1883100,78991,1883100
+../sources/problog_bn_query_no_tseitin/munin.pl,1311,724,1.193,1965,107119,2015,112818,1965,33909,2015,39608,1941,33862,1991,39239
+../sources/problog_bn_query_no_tseitin/insurance.pl,1969,1070,57.557,60297,5331471,60386,5413963,60297,1178701,60386,1261193,60297,1178701,60386,1261193
+../sources/problog_bn_query_no_tseitin/andes.pl,2279,1618,193.964,252175,8582346,252764,11024670,252175,632367,252764,3074691,251885,603485,252480,3047468

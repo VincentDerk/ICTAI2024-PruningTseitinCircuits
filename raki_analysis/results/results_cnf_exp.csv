@@ -27,3 +27,4 @@ cnf_path,clause_count,var_count,tseitin_var_count,compile_time,timestamp,ddnnf_n
 ../sources/raki_aux_benchmarks/gh/gh_2_prob.lp.cnf,5,4,1,0.070,1712256575.9116478,2,6,3,7,2,4,3,5,2,4,3,5
 ../sources/raki_aux_benchmarks/gh/gh_2_prob.lp.cnf,5,4,1,0.189,1712256577.8710032,2,6,3,7,2,4,3,5,2,4,3,5
 ../sources/raki_aux_benchmarks/gh/gh_2_prob.lp.cnf,5,4,1,0.133,1712256580.0328193,2,6,3,7,2,4,3,5,2,4,3,5
+../sources/raki_aux_benchmarks/gh/gh_2_prob.lp.cnf,5,4,1,0.126,1712258361.9825566,2,6,3,7,2,4,3,5,2,4,3,5

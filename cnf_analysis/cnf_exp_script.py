@@ -146,7 +146,7 @@ def compute_nb_operations(ddnnf: DDNNF, include_unused_vars=False) -> (int, int)
 
 
 def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
-    MAX_VMEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
+    MAX_VMEMORY = 64 * 1024 * 1024 * 1024  # 4GB (in bytes)
     resource.setrlimit(resource.RLIMIT_AS, (MAX_VMEMORY, resource.RLIM_INFINITY))
 
     # ensure result_csv_path exists.
@@ -264,5 +264,5 @@ if __name__ == "__main__":
     # cnf_instances_csv = "results/test-cnfs.csv"
     cnf_instances_csv = "results/tseitin-var-counts-mcc-filtered.csv"
     result_csv = "results/results_cnf_exp.csv"
-    execute_experiment(cnf_instances_csv, result_csv, timeout=600)
+    execute_experiment(cnf_instances_csv, result_csv, timeout=3600)
 

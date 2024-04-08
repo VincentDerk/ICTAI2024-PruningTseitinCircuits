@@ -201,7 +201,7 @@ if __name__ == "__main__":
     result_path = "./results/problog_exp.csv"
     _generate_result_csv(result_path)
 
-    # he following benchmarks have all proven to be mutually exclusive without Tseitin artifacts
+    # The following benchmarks have all proven to be mutually exclusive, without Tseitin artifacts
     # _process(result_path, "../sources/nesy/addition.pl", add_query=False)
     # _process(result_path, "../sources/nesy/addition_4_1.pl", add_query=False)
     # _process(result_path, "../sources/nesy/poker.pl", add_query=True)

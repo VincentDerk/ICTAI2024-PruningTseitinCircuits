@@ -268,10 +268,10 @@ def execute_experiment(cnf_folder_path, result_csv_path, timeout=600):
 if __name__ == "__main__":
     result_csv = "results/results_cnf_exp.csv"
     _timeout = 600
-    _process("../sources/raki_aux_benchmarks/gh/gh_2_prob.lp.cnf", result_csv, timeout=_timeout)
-    # execute_experiment("../sources/raki_aux_benchmarks/gh/", result_csv, timeout=_timeout)
-    # execute_experiment("../sources/raki_aux_benchmarks/gnb/", result_csv, timeout=_timeout)
-    # execute_experiment("../sources/raki_aux_benchmarks/lp2sat/", result_csv, timeout=_timeout)
-    # execute_experiment("../sources/raki_aux_benchmarks/smokers/", result_csv, timeout=_timeout)
-    # execute_experiment("../sources/raki_aux_benchmarks/tree/", result_csv, timeout=_timeout)
+    # _process("../sources/raki_aux_benchmarks/gh/gh_2_prob.lp.cnf", result_csv, timeout=_timeout)
+    execute_experiment("../sources/raki_aux_benchmarks/gh/", result_csv, timeout=_timeout)
+    execute_experiment("../sources/raki_aux_benchmarks/gnb/", result_csv, timeout=_timeout)
+    execute_experiment("../sources/raki_aux_benchmarks/lp2sat/", result_csv, timeout=_timeout)
+    execute_experiment("../sources/raki_aux_benchmarks/smokers/", result_csv, timeout=_timeout)
+    execute_experiment("../sources/raki_aux_benchmarks/tree/", result_csv, timeout=_timeout)
 

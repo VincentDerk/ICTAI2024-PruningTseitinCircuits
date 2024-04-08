@@ -60,52 +60,15 @@ def read_from_file(csv_result_filepath: str):
     return result_objs
 
 
-def visualize_results(img_filepath, result_objs: List[_ResultObj]):
-
-    def _extract_name(name):
-        return name.split("/")[-1].replace(".pl", "")
-
-    data_x = np.array(range(len(result_objs)))
-    data_yp = [r.ddnnfp_nodecount / r.ddnnf_nodecount * 100 for r in result_objs]
-    data_yt = [r.ddnnft_nodecount / r.ddnnf_nodecount * 100 for r in result_objs]
-    tick_labels = [_extract_name(r.instance_name) for r in result_objs]
-
-    # swap position of munin with pathfinder for readability
-    assert tick_labels[2] == "pathfinder"
-    assert tick_labels[5] == "munin"
-    pathfinder_yp, pathfinder_yt, pathfinder_label = data_yp[2], data_yt[2], tick_labels[2]
-    data_yp[2], data_yt[2], tick_labels[2] = data_yp[5], data_yt[5], tick_labels[5]
-    data_yp[5], data_yt[5], tick_labels[5] = pathfinder_yp, pathfinder_yt, pathfinder_label
-
-    # start plot
-    plt.style.use("../tex.mplstyle")
-    fig, ax = plt.subplots()  # nrows=1, ncols=1, figsize=figsize)
-    fig.set_figwidth(3.31)
-    fig.set_figheight(2.04)
-    plt.bar(data_x - 0.2, height=data_yp, width=0.4, color='blue', label="d-DNNF+p", hatch="//")
-    plt.bar(data_x + 0.2,  height=data_yt, width=0.4, color='green', label="d-DNNF+t")
-    plt.xticks(data_x, tick_labels, y=-0.05, fontsize=7)
-
-    for i, label in enumerate(ax.get_xticklabels()):
-        if i % 2:
-            label.set_va('top')
-        else:
-            pass
-            label.set_va('bottom')
-    ax.set_xlabel("Bayesian network")
-    ax.set_ylabel("nodes remaining (\%)")
-    ax.legend()
-
-    plt.savefig(img_filepath, bbox_inches='tight')
-    # plt.show()
-
-
 if __name__ == "__main__":
-    result_csv = "./results/bn_no_tseitin_exp.csv"
+    result_csv = "./results/countries_exp.csv"
     results = read_from_file(result_csv)
+    print(f"{len(results)} instances")
+    print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
     for result in results:
         rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
         rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
-        print(f"{result.instance_name}    \t\t{result.ddnnf_nodecount}\t{result.ddnnfp_nodecount} ({rel_compression:.2f})"
-              f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
-    visualize_results("./results/bn_no_tseitin_exp.pdf", results)
+        msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
+               f"\t{result.ddnnfp_nodecount} ({rel_compression:.2f})" +
+               f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
+        print(msg)

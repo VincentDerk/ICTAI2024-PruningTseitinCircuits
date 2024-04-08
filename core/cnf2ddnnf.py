@@ -29,7 +29,7 @@ def _compile_with_d4(cnf: CNF, timeout):
     cmd = ["../bin/d4_static", cnf_file, "-dDNNF", "-rnd-seed=458834", f"-out={nnf_file}"]
 
     def _set_mem_resources():
-        MAX_VIRTUAL_MEMORY = 4 * 1024 * 1024 * 1024  # 4GB (in bytes)
+        MAX_VIRTUAL_MEMORY = 64 * 1024 * 1024 * 1024  # 4GB (in bytes)
         resource.setrlimit(resource.RLIMIT_AS, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
         # resource.setrlimit(resource.RLIMIT_DATA, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
         # resource.setrlimit(resource.RLIMIT_STACK, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
@@ -106,9 +106,6 @@ def _load_nnf_d4(filepath: str, num_vars) -> DDNNF:
             if nnf_graph_d4[_curr_node_idx] is None:
                 nnf_graph_d4[_curr_node_idx] = list()
             nnf_graph_d4[_curr_node_idx].append(child_node_idx)
-
-        # TODO: 30/03/ if node_types ends with 't', then nnf_graph_d4 will not be of correct size, missing entry for that true/
-        # Also for 'f'?
 
         assert len(nnf_graph_d4) == len(node_types)
 
