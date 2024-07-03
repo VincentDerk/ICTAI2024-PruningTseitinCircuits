@@ -6,7 +6,7 @@ import numpy as np
 class _ResultObj:
 
     def __init__(self, cnf_path):
-        self.cnf_path = cnf_path
+        self.instance_name = cnf_path
         self.clause_count = 0
         self.var_count = 0
         self.tseitin_var_count = 0
@@ -19,6 +19,20 @@ class _ResultObj:
         self.sddnnf_nodecount = 0
         self.sddnnfp_nodecount = 0
         self.sddnnft_nodecount = 0
+
+    def _signature(self):
+        return (self.clause_count, self.var_count,
+                self.ddnnf_nodecount, self.ddnnfp_nodecount, self.ddnnft_nodecount)
+
+    def __eq__(self, other):
+        """ whether it is likely the same instance """
+        if not isinstance(other, _ResultObj):
+            return False
+        return self._signature() == other._signature()
+
+    def __hash__(self):
+        return hash(self._signature())
+
 
 
 def read_from_file(csv_result_filepath: str):
@@ -50,6 +64,10 @@ def read_from_file(csv_result_filepath: str):
             nb_timeouts += 1
             continue
 
+        if any((parts[x] == "MEM_ERR2" for x in [6,8,10,12,14,16])):
+            nb_mems += 1
+            continue
+
         result_obj.ddnnf_nodecount = int(parts[6]) + int(parts[7])
         result_obj.sddnnf_nodecount = int(parts[8]) + int(parts[9])
         result_obj.ddnnfp_nodecount = int(parts[10]) + int(parts[11])
@@ -62,8 +80,13 @@ def read_from_file(csv_result_filepath: str):
     return result_objs
 
 
-def _print_latex_table(result_objs):
-    return None
+def _filter_duplicates(result_objs):
+    result_objs = sorted(result_objs, key=lambda x: x._signature())
+    result_objs_filtered = []
+    for i in range(len(result_objs)):
+        if i == 0 or result_objs[i] != result_objs[i-1]:
+            result_objs_filtered.append(result_objs[i])
+    return result_objs_filtered
 
 
 def _print_info(result_objs: List[_ResultObj]):
@@ -337,6 +360,7 @@ def _scatter_prop_vs_tseitin(result_objs: List[_ResultObj], img_filepath):
 if __name__ == "__main__":
     result_csv = "results/results_cnf_exp.csv"
     results = read_from_file(result_csv)
+    results = _filter_duplicates(results)
     # _print_latex_table(results)
     _print_info(results)
 

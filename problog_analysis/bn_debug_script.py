@@ -1,21 +1,28 @@
 import os
-import pickle
 import subprocess
 import sys
+import pickle
+import string
 import time
 
+from graphviz import Source
 
 # To use ../core/ imports, we are adding the parent folder to sys.path
 script_dir = os.path.dirname(os.path.realpath(__file__))
 parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 
-from core.varinfo import VariableSetInfo
 from core.cnf import CNF
 from core.cnf2ddnnf import cnf_to_ddnnf
 from core.ddnnf import DDNNF
 from core.ddnnf_extra import compress_ddnnf, smooth_ddnnf, existential_quantification, \
-    existential_quantification_tseitin, compute_nb_operations
+    existential_quantification_tseitin, compute_nb_operations, ddnnf_to_dot
+from core.varinfo import VariableSetInfo
+from problog_analysis.problog2ddnnf import  logicdag_to_cnf
+
+from problog.formula import LogicDAG
+from problog.program import PrologFile
+from problog.engine import DefaultEngine
 
 
 def _compile_instance(cnf: CNF, timeout) -> (DDNNF, int, str):
@@ -83,52 +90,20 @@ def _write_to_result_csv(result_csv_path: str, result: dict):
                 f"{sddnnf_tseitin_nodecount_plus},{sddnnf_tseitin_nodecount_mult}\n")
 
 
-def _dnf_to_cnf(dnf):
-    cnf = CNF()
-    nb_true_atoms = 0
-    tseitin_vars = list()
-    # first we gather all atoms
-    var_map = dict()  # map str to variable index
-    for explanation in dnf:
-        # add unobserved atoms
-        for expl_var in explanation:
-            if expl_var not in var_map:
-                cnf.add_atom()
-                var_map[expl_var] = cnf.var_count
-    nb_true_atoms = cnf.var_count
-
-    # then we create a CNF
-    for explanation in dnf:
-        # map explanation from str to ints
-        explanation = [var_map[expl_var] for expl_var in explanation]
-        cnf.add_atom()
-        cnf.add_iff_conj(cnf.var_count, *explanation)
-
-    # determine tseitin variables
-    tseitin_vars = list(range(nb_true_atoms+1, cnf.var_count+1))
-    assert len(tseitin_vars) + nb_true_atoms == cnf.var_count
-    assert len(dnf) == len(tseitin_vars)
-
-    # add final
-    cnf.add_clause(tseitin_vars.copy())
-    var_info = VariableSetInfo(None, tseitin_vars)
-    # TODO: if we cared we could add node2dict to var_info.
-    return cnf, var_info
-
-
 def _process(result_csv_path, instance_filepath):
-    with open(instance_filepath, "rb") as f:
-        dnf = pickle.load(f)
-    if dnf is None:
-        print(f"\tSkipped instance {instance_filepath}")
-        return
-    cnf, var_info = _dnf_to_cnf(dnf)
-    del dnf
-    print(f"\tCNF of vars {cnf.var_count} with {cnf.clause_count()} clauses and {len(var_info.tseitin_vars)} ({(len(var_info.tseitin_vars) / cnf.var_count * 100):.1f}%) Tseitin variables.")
+    model = PrologFile(instance_filepath)
+    engine = DefaultEngine(label_all=True)
+    db = engine.prepare(model)
+    gp = engine.ground_all(db)
+    gp = LogicDAG.createFrom(gp)
+    cnf, var_info = logicdag_to_cnf(gp, add_query=True)
+    print(f"\tCNF of vars {cnf.var_count} with {cnf.clause_count()} clauses and "
+          f"{len(var_info.tseitin_vars)} ({(len(var_info.tseitin_vars) / cnf.var_count * 100):.1f}%) "
+          f"Tseitin variables.")
 
-    if cnf.var_count < 100 or len(var_info.tseitin_vars) < 10:
-        print(f"\tSkipped instance {instance_filepath}")
-        return
+    # if cnf.var_count < 100 or len(var_info.tseitin_vars) < 10:
+    #     print(f"\tSkipped instance {instance_filepath}")
+    #     return
 
     result_dict = dict()
     result_dict["filepath"] = instance_filepath
@@ -140,25 +115,10 @@ def _process(result_csv_path, instance_filepath):
     result_dict["tseitin_var_count"] = len(var_info.tseitin_vars) if var_info is not None else 0
     print(f"\tCompiled {instance_filepath} with {status} and compile time {compile_time:.3f}s.")
 
+    Source(ddnnf_to_dot(ddnnf, None)).render(view=True)
     if ddnnf is not None and status == "success":
         # compress d-DNNF
         ddnnf = compress_ddnnf(ddnnf)
-
-        # ddnnf_nodecount
-        nb_plus, nb_times = compute_nb_operations(ddnnf)
-        print(f"\td-DNNF after compression. + ({nb_plus}) * ({nb_times})")
-        result_dict["ddnnf_nodecount_plus"] = nb_plus
-        result_dict["ddnnf_nodecount_mult"] = nb_times
-
-        # sddnnf_nodecount
-        start_time = time.time()
-        sddnnf = smooth_ddnnf(ddnnf)
-        end_time = time.time()
-        nb_plus, nb_times = compute_nb_operations(sddnnf, include_unused_vars=True)
-        print(f"\tSmoothing took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
-        del sddnnf
-        result_dict["sddnnf_nodecount_plus"] = nb_plus
-        result_dict["sddnnf_nodecount_mult"] = nb_times
 
         # simple existential quantification of tseitin variables
         start_time = time.time()
@@ -167,17 +127,6 @@ def _process(result_csv_path, instance_filepath):
         nb_plus, nb_times = compute_nb_operations(ddnnfp)
         print(
             f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
-        result_dict["ddnnf_exist_nodecount_plus"] = nb_plus
-        result_dict["ddnnf_exist_nodecount_mult"] = nb_times
-
-        # smoothing simple existential quantification of tseitin variables
-        sddnnfp = smooth_ddnnf(ddnnfp)
-        del ddnnfp
-        nb_plus, nb_times = compute_nb_operations(sddnnfp, include_unused_vars=True)
-        print(f"\tSmoothing after simple existential quantification. + ({nb_plus}) * ({nb_times})")
-        del sddnnfp
-        result_dict["sddnnf_exist_nodecount_plus"] = nb_plus
-        result_dict["sddnnf_exist_nodecount_mult"] = nb_times
 
         # tseitin-artifact removal + existential quantification
         start_time = time.time()
@@ -191,60 +140,40 @@ def _process(result_csv_path, instance_filepath):
         result_dict["ddnnf_tseitin_nodecount_mult"] = nb_times
 
         # smooth tseitin ddnnf
-        sddnnft = smooth_ddnnf(ddnnft)
-        del ddnnft
-        nb_plus, nb_times = compute_nb_operations(sddnnft, include_unused_vars=True)
-        del sddnnft
-        print(f"\tSmooth after Tseitin. + ({nb_plus}) * ({nb_times})")
-        result_dict["sddnnf_tseitin_nodecount_plus"] = nb_plus
-        result_dict["sddnnf_tseitin_nodecount_mult"] = nb_times
-
-    elif status == "timeout" or status == "memory_error":
-        err_msg = "TO" if status == "timeout" else "MEM_ERR"
-        result_dict["ddnnf_nodecount_plus"] = err_msg
-        result_dict["ddnnf_nodecount_mult"] = err_msg
-        result_dict["ddnnf_exist_nodecount_plus"] = err_msg
-        result_dict["ddnnf_exist_nodecount_mult"] = err_msg
-        result_dict["ddnnf_tseitin_nodecount_plus"] = err_msg
-        result_dict["ddnnf_tseitin_nodecount_mult"] = err_msg
-        result_dict["sddnnf_nodecount_plus"] = err_msg
-        result_dict["sddnnf_nodecount_mult"] = err_msg
-        result_dict["sddnnf_exist_nodecount_plus"] = err_msg
-        result_dict["sddnnf_exist_nodecount_mult"] = err_msg
-        result_dict["sddnnf_tseitin_nodecount_plus"] = err_msg
-        result_dict["sddnnf_tseitin_nodecount_mult"] = err_msg
-
-    if status == "success" or status == "timeout" or status == "memory_error":
-        _write_to_result_csv(result_csv_path, result_dict)
+        result_dict["sddnnf_tseitin_nodecount_plus"] = "NA"
+        result_dict["sddnnf_tseitin_nodecount_mult"] = "NA"
 
 
-def execute_experiment(result_csv_path, dnf_folder_dir):
+def execute_experiment(result_csv_path, problog_folder_dir):
     _generate_result_csv(result_csv_path)
-    for filename in os.listdir(dnf_folder_dir):
-        if ".pkl" in filename:
-            instance_filepath = os.path.join(dnf_folder_dir, filename)
-            print(f"Processing {instance_filepath}")
-            _process(result_csv_path, instance_filepath)
+    for filename in os.listdir(problog_folder_dir):
+        instance_filepath = os.path.join(problog_folder_dir, filename)
+        print(f"Processing {instance_filepath}")
+        _process(result_csv_path, instance_filepath)
 
 
 def temp_get_cnf(instance_filepath):
-    with open(instance_filepath, "rb") as f:
-        dnf = pickle.load(f)
-    cnf, var_info = _dnf_to_cnf(dnf)
-    del dnf
-    print(f"\tCNF of vars {cnf.var_count} with {cnf.clause_count()} clauses and {len(var_info.tseitin_vars)} ({(len(var_info.tseitin_vars) / cnf.var_count * 100):.1f}%) Tseitin variables.")
-    cnf_file = "./countries_s3_20240614.cnf"
+    model = PrologFile(instance_filepath)
+    engine = DefaultEngine(label_all=True)
+    db = engine.prepare(model)
+    gp = engine.ground_all(db)
+    gp = LogicDAG.createFrom(gp)
+    cnf, var_info = logicdag_to_cnf(gp, add_query=True)
+    print(f"\tCNF of vars {cnf.var_count} with {cnf.clause_count()} clauses and "
+          f"{len(var_info.tseitin_vars)} ({(len(var_info.tseitin_vars) / cnf.var_count * 100):.1f}%) "
+          f"Tseitin variables.")
+    cnf_file = "./andes_20240614.net.cnf"
+    # write dimacs
     with open(cnf_file, "w") as f:
         f.write(cnf.to_dimacs())
         f.write(f"\nc p auxilliary {' '.join((str(x) for x in var_info.tseitin_vars))}")
 
 
 if __name__ == "__main__":
-    result_path = "./results/countries_exp.csv"
-    # folder_dir = "../sources/dnf_countries/"
+    # result_path = "./results/bn_exp.csv"
+    # folder_dir = "../sources/problog_bn_query/"
     # execute_experiment(result_path, folder_dir)
-    # temp_get_cnf("../sources/dnf_countries/proofs_countries_s3_smaller.pkl")
-    _process(result_path, "../sources/dnf_countries/proofs_countries_s1.pkl")
-    _process(result_path, "../sources/dnf_countries/proofs_countries_s2.pkl")
-    _process(result_path, "../sources/dnf_countries/proofs_countries_s3_smaller.pkl")
+    # temp_get_cnf("../sources/problog_bn_query_no_tseitin/andes-noneg.net.pl")
+    # _process("./results/temp.csv", "../sources/problog_bn_query_no_tseitin/andes-noneg.net.pl")
+    _process("./results/temp.csv", "./temp-noisy-2.pl")
 

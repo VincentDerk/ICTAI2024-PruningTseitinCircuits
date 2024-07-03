@@ -1,6 +1,7 @@
 from typing import List
 from raki_analysis.raki_report_script import read_from_file as raki_read_from_file
 from problog_analysis.problog_report_script import read_from_file as problog_read_from_file
+from cnf_analysis.cnf_exp_report_script import _filter_duplicates, read_from_file as cnf_read_from_file
 
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
@@ -184,25 +185,44 @@ def _scatter_prop_vs_tseitin(result_objs, img_filepath):
 
 def _print_latex_table(result_objs, sort=True):
     if sort:
-        # result_objs.sort(key=lambda x: x.ddnnft_nodecount / x.ddnnf_nodecount, reverse=True)
-        result_objs.sort(key=lambda x: x.ddnnf_nodecount, reverse=True)
+        result_objs.sort(key=lambda x: x.ddnnfp_nodecount / x.ddnnft_nodecount, reverse=True)
+        # result_objs.sort(key=lambda x: x.ddnnf_nodecount, reverse=True)
     for result in result_objs:
         rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount * 100
         rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount * 100
+        tseitin_fraction = result.tseitin_var_count / result.var_count * 100
         name = result.instance_name
+        new_name = name
         if "cnf/MC20" in name:
             mc_tag = "w" if "wmc" in name else ""
             is_public = "pu" if "public" in name else "pr"
             track_nr = 1 if "track1" in name else 2
             year = 23 if "mc2023" in name else 22
             digits = name[len(name)-7:-4]
-            new_name = f"MCC{year}\\_{mc_tag}{is_public}{track_nr}\\_{digits}"
-        elif "raki_aux_benchmarks/lp2sat/_smokers" in name:
-            new_name = name
-        msg = (f"{new_name} & {result.ddnnf_nodecount:,} & " +
+            new_name = f"MCC{year}_{mc_tag}{is_public}{track_nr}_{digits}"
+        elif "raki_aux_benchmarks/lp2sat/smokers" in name:
+            new_name = name.replace(".lp", "").replace(".cnf", "").replace("../sources/raki_aux_benchmarks/", "").replace("_prob", "")
+        elif "raki_aux_benchmarks/smokers/smokers" in name:
+            new_name = name.replace(".lp", "").replace(".cnf", "").replace("../sources/raki_aux_benchmarks/", "").replace("_prob", "")
+        elif "raki_aux_benchmarks/gh/gh" in name:
+            new_name = name.replace("../sources/raki_aux_benchmarks/gh/", "").replace(".lp", "").replace(".cnf", "").replace("_prob", "")
+        elif "raki_aux_benchmarks/gnb/gnb" in name:
+            new_name = name.replace("../sources/raki_aux_benchmarks/gnb/", "").replace(".lp", "").replace(".cnf", "").replace("_prob", "")
+        elif "raki_aux_benchmarks/tree/tree" in name:
+            new_name = name.replace(".lp", "").replace(".cnf", "").replace("../sources/raki_aux_benchmarks/tree/", "")
+        elif "raki_aux_benchmarks/lp2sat/tree" in name:
+            new_name = name.replace(".lp", "").replace(".cnf", "").replace("../sources/raki_aux_benchmarks/", "")
+        elif "powergrid" in name:
+            new_name = (name.replace("../sources/problog_src/powergrid-reliability-latour2019/", "").
+                        replace(".pl", "").replace("pgr-", "").replace("_gcc_",""))
+        elif "problog_src" in name:
+            new_name = name[len("../sources/problog_src/"):].replace("games/", "")
+
+        msg = (f"{new_name} & {result.var_count} & {result.tseitin_var_count} ({tseitin_fraction:.0f}\%) & "
+               f"{result.ddnnf_nodecount:,} & " +
                f"{result.ddnnfp_nodecount:,} ({rel_compression:.0f}\\%) & " +
                f"{result.ddnnft_nodecount:,} ({rel_compression2:.0f}\\%) \\\\")
-        print(msg.replace(",", " "))
+        print(msg.replace(",", " ").replace("_", "\\_"))
 
 
 def _print_info(result_objs):
@@ -243,66 +263,68 @@ def _print_info(result_objs):
 
 
 if __name__ == "__main__":
-    results = raki_read_from_file("../cnf_analysis/results/results_cnf_exp.csv")
+    # results = cnf_read_from_file("../cnf_analysis/results/results_cnf_exp.csv")
+    # results = _filter_duplicates(results)
     # results = raki_read_from_file("./results/results_raki_aux_benchmarks_exp.csv")
     # results.extend(problog_read_from_file("../problog_analysis/results/problog_exp.csv"))
     # _print_latex_table(results, sort=True)
 
-    # # read raki data
-    # result_csv = "./results/results_raki_aux_benchmarks_exp.csv"
-    # results = raki_read_from_file(result_csv)
-    # print(f"{len(results)} instances")
-    # print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
-    # for result in results:
-    #     rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
-    #     rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
-    #     msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
-    #            f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
-    #            f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
-    #     print(msg)
-    # print("-- problog data --")
-    # # read problog data
-    # result_csv = "../problog_analysis/results/problog_exp.csv"
-    # results2 = problog_read_from_file(result_csv)
-    # print(f"{len(results2)} instances")
-    # print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
-    # for result in results2:
-    #     rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
-    #     rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
-    #     msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
-    #            f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
-    #            f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
-    #     print(msg)
-    # # read nesy
-    # result_csv = "../nesy_analysis/results/countries_exp.csv"
-    # results3 = problog_read_from_file(result_csv)
-    # print(f"{len(results3)} instances")
-    # print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
-    # for result in results3:
-    #     rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
-    #     rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
-    #     msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
-    #            f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
-    #            f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
-    #     print(msg)
-    # # read CNFs
-    # result_csv = "../cnf_analysis/results/results_cnf_exp.csv"
-    # results4 = raki_read_from_file(result_csv)
-    # print(f"{len(results4)} instances")
-    # print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
-    # for result in results4:
-    #     rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
-    #     rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
-    #     msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
-    #            f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
-    #            f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
-    #     print(msg)
-    # print("----------------\n\n")
-    # results.extend(results2)
-    # results.extend(results3)
-    # results.extend(results4)
-    # _print_info(results)
-    # print("----------------")
+    # read raki data
+    result_csv = "./results/results_raki_aux_benchmarks_exp.csv"
+    results = raki_read_from_file(result_csv)
+    print(f"{len(results)} instances")
+    print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
+    for result in results:
+        rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
+        rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
+        msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
+               f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
+               f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
+        print(msg)
+    print("-- problog data --")
+    # read problog data
+    result_csv = "../problog_analysis/results/problog_exp.csv"
+    results2 = problog_read_from_file(result_csv)
+    print(f"{len(results2)} instances")
+    print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
+    for result in results2:
+        rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
+        rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
+        msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
+               f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
+               f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
+        print(msg)
+    # read nesy
+    result_csv = "../nesy_analysis/results/countries_exp.csv"
+    results3 = problog_read_from_file(result_csv)
+    print(f"{len(results3)} instances")
+    print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
+    for result in results3:
+        rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
+        rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
+        msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
+               f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
+               f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
+        print(msg)
+    # read CNFs
+    result_csv = "../cnf_analysis/results/results_cnf_exp.csv"
+    results4 = cnf_read_from_file(result_csv)
+    results4 = _filter_duplicates(results4)
+    print(f"{len(results4)} instances")
+    print("instance".ljust(90) + "\t|ddnnf|\t|ddnnf+p| (remaining)\t|ddnn+t| (remaining)")
+    for result in results4:
+        rel_compression = result.ddnnfp_nodecount / result.ddnnf_nodecount
+        rel_compression2 = result.ddnnft_nodecount / result.ddnnf_nodecount
+        msg = (f"{result.instance_name}".ljust(90) + f"\t{result.ddnnf_nodecount}\t" +
+               f"\t{result.ddnnfp_nodecount}({rel_compression:.2f})" +
+               f"\t{result.ddnnft_nodecount} ({rel_compression2:.2f})")
+        print(msg)
+    print("----------------\n\n")
+    results.extend(results2)
+    results.extend(results3)
+    results.extend(results4)
+    _print_info(results)
+    print("----------------")
     # print("reg vs tseitin")
     # _scatter_reg_vs_tseitin(results, "./results/global_reg_vs_tseitin.pdf")
     # print("")

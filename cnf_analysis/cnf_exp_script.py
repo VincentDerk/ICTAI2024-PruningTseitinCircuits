@@ -177,87 +177,106 @@ def execute_experiment(cnf_csv_path, result_csv_path, timeout=600):
         del cnf
         result_dict["tseitin_var_count"] = len(var_info.tseitin_vars)
 
+        # set memory message in case we run out of memory.
+        # if we succeed we will override these.
+        err_msg = "MEM_ERR"
+        result_dict["ddnnf_nodecount_plus"] = err_msg
+        result_dict["ddnnf_nodecount_mult"] = err_msg
+        result_dict["ddnnf_exist_nodecount_plus"] = err_msg
+        result_dict["ddnnf_exist_nodecount_mult"] = err_msg
+        result_dict["ddnnf_tseitin_nodecount_plus"] = err_msg
+        result_dict["ddnnf_tseitin_nodecount_mult"] = err_msg
+        result_dict["sddnnf_nodecount_plus"] = err_msg
+        result_dict["sddnnf_nodecount_mult"] = err_msg
+        result_dict["sddnnf_exist_nodecount_plus"] = err_msg
+        result_dict["sddnnf_exist_nodecount_mult"] = err_msg
+        result_dict["sddnnf_tseitin_nodecount_plus"] = err_msg
+        result_dict["sddnnf_tseitin_nodecount_mult"] = err_msg
         #   compile instance to ddnnf
-        ddnnf, compile_time, status = _compile_instance(instance_filepath, timeout=timeout)
-        result_dict["compile_time"] = compile_time
-        result_dict["timestamp"] = time.time()
-        print(f"\tCompiled {instance_filepath} with {status} and compile time {compile_time:.3f}s.")
+        try:
+            ddnnf, compile_time, status = _compile_instance(instance_filepath, timeout=timeout)
+            result_dict["compile_time"] = compile_time
+            result_dict["timestamp"] = time.time()
+            print(f"\tCompiled {instance_filepath} with {status} and compile time {compile_time:.3f}s.")
 
-        if ddnnf is not None and status == "success":
-            # compress d-DNNF
-            ddnnf = compress_ddnnf(ddnnf)
 
-            # ddnnf_nodecount
-            nb_plus, nb_times = compute_nb_operations(ddnnf)
-            print(f"\td-DNNF after compression. + ({nb_plus}) * ({nb_times})")
-            result_dict["ddnnf_nodecount_plus"] = nb_plus
-            result_dict["ddnnf_nodecount_mult"] = nb_times
+            if ddnnf is not None and status == "success":
+                # compress d-DNNF
+                ddnnf = compress_ddnnf(ddnnf)
 
-            # sddnnf_nodecount
-            start_time = time.time()
-            sddnnf = smooth_ddnnf(ddnnf)
-            end_time = time.time()
-            nb_plus, nb_times = compute_nb_operations(sddnnf, include_unused_vars=True)
-            print(f"\tSmoothing took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
-            del sddnnf
-            result_dict["sddnnf_nodecount_plus"] = nb_plus
-            result_dict["sddnnf_nodecount_mult"] = nb_times
+                # ddnnf_nodecount
+                nb_plus, nb_times = compute_nb_operations(ddnnf)
+                print(f"\td-DNNF after compression. + ({nb_plus}) * ({nb_times})")
+                result_dict["ddnnf_nodecount_plus"] = nb_plus
+                result_dict["ddnnf_nodecount_mult"] = nb_times
 
-            # simple existential quantification of tseitin variables
-            start_time = time.time()
-            ddnnfp = existential_quantification(ddnnf, var_info.tseitin_vars)
-            end_time = time.time()
-            nb_plus, nb_times = compute_nb_operations(ddnnfp)
-            print(f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
-            result_dict["ddnnf_exist_nodecount_plus"] = nb_plus
-            result_dict["ddnnf_exist_nodecount_mult"] = nb_times
+                # sddnnf_nodecount
+                start_time = time.time()
+                sddnnf = smooth_ddnnf(ddnnf)
+                end_time = time.time()
+                nb_plus, nb_times = compute_nb_operations(sddnnf, include_unused_vars=True)
+                print(f"\tSmoothing took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
+                del sddnnf
+                result_dict["sddnnf_nodecount_plus"] = nb_plus
+                result_dict["sddnnf_nodecount_mult"] = nb_times
 
-            # smoothing simple existential quantification of tseitin variables
-            sddnnfp = smooth_ddnnf(ddnnfp)
-            del ddnnfp
-            nb_plus, nb_times = compute_nb_operations(sddnnfp, include_unused_vars=True)
-            print(f"\tSmoothing after simple existential quantification. + ({nb_plus}) * ({nb_times})")
-            del sddnnfp
-            result_dict["sddnnf_exist_nodecount_plus"] = nb_plus
-            result_dict["sddnnf_exist_nodecount_mult"] = nb_times
+                # simple existential quantification of tseitin variables
+                start_time = time.time()
+                ddnnfp = existential_quantification(ddnnf, var_info.tseitin_vars)
+                end_time = time.time()
+                nb_plus, nb_times = compute_nb_operations(ddnnfp)
+                print(f"\tExistential quantification took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
+                result_dict["ddnnf_exist_nodecount_plus"] = nb_plus
+                result_dict["ddnnf_exist_nodecount_mult"] = nb_times
 
-            # tseitin-artifact removal + existential quantification
-            start_time = time.time()
-            ddnnft = existential_quantification_tseitin(ddnnf, var_info.tseitin_vars)
-            del ddnnf
-            end_time = time.time()
-            nb_plus, nb_times = compute_nb_operations(ddnnft)
-            print(f"\tExistential quantification witth Tseitin took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
-            result_dict["ddnnf_tseitin_nodecount_plus"] = nb_plus
-            result_dict["ddnnf_tseitin_nodecount_mult"] = nb_times
+                # smoothing simple existential quantification of tseitin variables
+                sddnnfp = smooth_ddnnf(ddnnfp)
+                del ddnnfp
+                nb_plus, nb_times = compute_nb_operations(sddnnfp, include_unused_vars=True)
+                print(f"\tSmoothing after simple existential quantification. + ({nb_plus}) * ({nb_times})")
+                del sddnnfp
+                result_dict["sddnnf_exist_nodecount_plus"] = nb_plus
+                result_dict["sddnnf_exist_nodecount_mult"] = nb_times
 
-            # smooth tseitin ddnnf
-            sddnnft = smooth_ddnnf(ddnnft)
-            del ddnnft
-            nb_plus, nb_times = compute_nb_operations(sddnnft, include_unused_vars=True)
-            del sddnnft
-            print(f"\tSmooth after Tseitin. + ({nb_plus}) * ({nb_times})")
-            result_dict["sddnnf_tseitin_nodecount_plus"] = nb_plus
-            result_dict["sddnnf_tseitin_nodecount_mult"] = nb_times
+                # tseitin-artifact removal + existential quantification
+                start_time = time.time()
+                ddnnft = existential_quantification_tseitin(ddnnf, var_info.tseitin_vars)
+                del ddnnf
+                end_time = time.time()
+                nb_plus, nb_times = compute_nb_operations(ddnnft)
+                print(f"\tExistential quantification witth Tseitin took {(end_time - start_time):.3f}s. + ({nb_plus}) * ({nb_times})")
+                result_dict["ddnnf_tseitin_nodecount_plus"] = nb_plus
+                result_dict["ddnnf_tseitin_nodecount_mult"] = nb_times
 
-        elif status == "timeout" or status == "memory_error":
-            err_msg = "TO" if status == "timeout" else "MEM_ERR"
-            result_dict["ddnnf_nodecount_plus"] = err_msg
-            result_dict["ddnnf_nodecount_mult"] = err_msg
-            result_dict["ddnnf_exist_nodecount_plus"] = err_msg
-            result_dict["ddnnf_exist_nodecount_mult"] = err_msg
-            result_dict["ddnnf_tseitin_nodecount_plus"] = err_msg
-            result_dict["ddnnf_tseitin_nodecount_mult"] = err_msg
-            result_dict["sddnnf_nodecount_plus"] = err_msg
-            result_dict["sddnnf_nodecount_mult"] = err_msg
-            result_dict["sddnnf_exist_nodecount_plus"] = err_msg
-            result_dict["sddnnf_exist_nodecount_mult"] = err_msg
-            result_dict["sddnnf_tseitin_nodecount_plus"] = err_msg
-            result_dict["sddnnf_tseitin_nodecount_mult"] = err_msg
+                # smooth tseitin ddnnf
+                sddnnft = smooth_ddnnf(ddnnft)
+                del ddnnft
+                nb_plus, nb_times = compute_nb_operations(sddnnft, include_unused_vars=True)
+                del sddnnft
+                print(f"\tSmooth after Tseitin. + ({nb_plus}) * ({nb_times})")
+                result_dict["sddnnf_tseitin_nodecount_plus"] = nb_plus
+                result_dict["sddnnf_tseitin_nodecount_mult"] = nb_times
 
-        if status == "success" or status == "timeout" or status == "memory_error":
+            elif status == "timeout" or status == "memory_error":
+                err_msg = "TO" if status == "timeout" else "MEM_ERR"
+                result_dict["ddnnf_nodecount_plus"] = err_msg
+                result_dict["ddnnf_nodecount_mult"] = err_msg
+                result_dict["ddnnf_exist_nodecount_plus"] = err_msg
+                result_dict["ddnnf_exist_nodecount_mult"] = err_msg
+                result_dict["ddnnf_tseitin_nodecount_plus"] = err_msg
+                result_dict["ddnnf_tseitin_nodecount_mult"] = err_msg
+                result_dict["sddnnf_nodecount_plus"] = err_msg
+                result_dict["sddnnf_nodecount_mult"] = err_msg
+                result_dict["sddnnf_exist_nodecount_plus"] = err_msg
+                result_dict["sddnnf_exist_nodecount_mult"] = err_msg
+                result_dict["sddnnf_tseitin_nodecount_plus"] = err_msg
+                result_dict["sddnnf_tseitin_nodecount_mult"] = err_msg
+
+            if status == "success" or status == "timeout" or status == "memory_error":
+                _write_to_result_csv(result_csv_path, result_dict)
+            # else: we printed the error and should look into this instance.
+        except MemoryError as err:
             _write_to_result_csv(result_csv_path, result_dict)
-        # else: we printed the error and should look into this instance.
 
 
 if __name__ == "__main__":
