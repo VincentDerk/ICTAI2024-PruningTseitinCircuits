@@ -165,3 +165,9 @@ cython_debug/
 /sources/cnf2tseitin/cnf/MC2023_track1-mc_public/
 /sources/cnf2tseitin/cnf/MC2022_track2-wmc_public/
 /sources/cnf2tseitin/cnf/MC2022_track1-mc_public/
+/sources/raki_aux_benchmarks/tree/*.cnf
+/sources/raki_aux_benchmarks/smokers/*.cnf
+/sources/raki_aux_benchmarks/lp2sat/*.cnf
+/sources/raki_aux_benchmarks/gnb/*.cnf
+/sources/raki_aux_benchmarks/gh/*.cnf
+
