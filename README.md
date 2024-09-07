@@ -19,10 +19,14 @@ Run `countries_exp.py` in the `nesy_analysis` folder to execute the Countries kn
 
 ## MCC
 
-The `filter_cnfs_script.py` script in the `cnf_analysis` folder filters paths of relevant CNF files, stored in `results/tseitin-var-counts-mcc-filtered.csv`. The `cnf_exp_script.py` script runs the filtered MCC dataset, storing results in `results/results_cnf_exp.csv`. The `cnf_exp_report_script.py` script then reports on the results, creating `results/scatter_reg_vs_tseitin.pdf` and `results/scatter_prop_vs_tseitin.pdf`.
+The `filter_cnfs_script.py` script in the `cnf_analysis` folder filters paths of relevant CNF files, stored in `results/tseitin-var-counts-mcc-filtered.csv`. 
+
+The `cnf_exp_script.py` script runs the filtered MCC dataset, storing results in `results/results_cnf_exp.csv`. The `cnf_exp_report_script.py` script then reports on the results, creating `results/scatter_reg_vs_tseitin.pdf` and `results/scatter_prop_vs_tseitin.pdf`.
 
 ## CNFT
 
 Run `problog_exp_script.py` in the `problog_analysis` folder to execute part of the CNFT experiment. The results are stored in `results/problog_exp.csv`.
+
 Run `raki_exp_script.py` in the `raki_analysis` folder to execute part of the CNFT experiment. The results are stored in `results/results_cnf_exp.csv`, which you can rename to `results_raki_aux_benchmarks_exp.csv`.
+
 The `global_report_script.py` script then prints information and a table for the CNFT and MCC dataset. The `combined_report_script.py` creates the CNFT scatter plots used in the paper.
