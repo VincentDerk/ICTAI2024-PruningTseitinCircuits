@@ -86,7 +86,7 @@ if __name__ == "__main__":
     # analyse_cnf_folder(output_filepath=out_filepath)
     # # step 2 - extract and store .varinfo only for certain instances
     filtered_out_filepath = "results/tseitin-var-counts-mcc-filtered.csv"
-    # filter_cnf_instances(input_filepath=out_filepath, output_filepath=filtered_out_filepath)
+    filter_cnf_instances(input_filepath=out_filepath, output_filepath=filtered_out_filepath)
 
 
     # ddnnf = compile_wmc_instance(

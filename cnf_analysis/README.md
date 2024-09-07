@@ -4,5 +4,3 @@ We assume that a tseitin procedure introduces many tseitin variables.
 Therefore, we filter out instances with few potential tseitin variables.
 The remaining instances are stored in `tseitin-var-counts-mcc-filtered.csv`.
 
-
-The remaining instances were compiled into ddnnf using `cnf2ddnnf_script.py`.

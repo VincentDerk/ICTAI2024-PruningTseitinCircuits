@@ -200,9 +200,9 @@ def execute_experiment(result_csv_path, problog_folder_dir, add_query=None):
 if __name__ == "__main__":
     result_path = "./results/problog_exp.csv"
     _generate_result_csv(result_path)
-    # execute_experiment(result_path, "../sources/problog_src/")
-    # execute_experiment(result_path, "../sources/problog_src/games/")
-    # execute_experiment(result_path, "../sources/problog_src/powergrid-reliability-latour2019/pgr-eu/", add_query=False)
+    execute_experiment(result_path, "../sources/problog_src/")
+    execute_experiment(result_path, "../sources/problog_src/games/")
+    execute_experiment(result_path, "../sources/problog_src/powergrid-reliability-latour2019/pgr-eu/", add_query=False)
     execute_experiment(result_path, "../sources/problog_src/powergrid-reliability-latour2019/pgr-na/", add_query=False)
 
     # _process(result_path, "../sources/problog_src/powergrid-reliability-latour2019/pgr-na/chihuahua_gcc_0.pl", add_query=False)
