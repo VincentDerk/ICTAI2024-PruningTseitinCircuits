@@ -19,7 +19,7 @@ Run `countries_exp.py` in the `nesy_analysis` folder to execute the Countries kn
 
 ## MCC
 
-The `filter_cnfs_script.py` script in the `cnf_analysis` folder filters paths of relevant CNF files, stored in `results/tseitin-var-counts-mcc-filtered.csv`. 
+The `filter_cnfs_script.py` script in the `cnf_analysis` folder filters paths of relevant CNF files, stored in `results/tseitin-var-counts-mcc-filtered.csv`. However, first the `sources/cnf2tseitin/cnf/` folder must be populated, for which we refer to the README in that folder.
 
 The `cnf_exp_script.py` script runs the filtered MCC dataset, storing results in `results/results_cnf_exp.csv`. The `cnf_exp_report_script.py` script then reports on the results, creating `results/scatter_reg_vs_tseitin.pdf` and `results/scatter_prop_vs_tseitin.pdf`.
 
